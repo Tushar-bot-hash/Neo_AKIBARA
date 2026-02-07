@@ -1,0 +1,156 @@
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom"; 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ShoppingCart, Zap, Sparkles, Loader2 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
+
+export default function HomePage() {
+  // Capture BOTH 'category' (from /products/:category) 
+  // and 'type' (from /collections/:type)
+  const { category, type } = useParams(); 
+  const { addToCart } = useCart();
+  const { toast } = useToast();
+  
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        let url = 'http://localhost:5000/api/products';
+        let queryParam = '';
+
+        // 1. Determine the filter based on the URL
+        if (category) {
+          queryParam = `category=${category}`;
+        } else if (type) {
+          // Mapping 'limited-edition' URL slug to whatever field your DB uses
+          // Usually this would be a 'collection' or 'tag' field
+          queryParam = `collection=${type}`; 
+        } else {
+          queryParam = 'featured=true';
+        }
+        
+        const res = await fetch(`${url}?${queryParam}`);
+        const json = await res.json();
+        
+        if (json.success) {
+          setProducts(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [category, type]); // REFRESH whenever category OR type changes
+
+  const handleAddToCart = (product) => {
+    const cartProduct = {
+      id: product._id,
+      title: product.name,
+      price: product.price,
+      image: product.image_url
+    };
+    
+    addToCart(cartProduct);
+    toast({
+      title: "Added to cart! ⚡",
+      description: `${product.name} has been added to your cart.`,
+      className: "border-2 border-[#00f0ff] bg-black text-white",
+    });
+  };
+
+  // Helper to format the title nicely (e.g., 'limited-edition' -> 'LIMITED EDITION')
+  const displayTitle = (category || type || "Featured Artifacts").replace(/-/g, ' ');
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-[#00f0ff]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Dynamic Header */}
+      <div className="mb-12 border-b border-gray-800 pb-8">
+        <div className="flex items-center gap-3 mb-2">
+          {type ? <Sparkles className="h-5 w-5 text-[#ff0055]" /> : <Zap className="h-5 w-5 text-[#00f0ff]" />}
+          <span className="text-xs font-mono text-gray-500 uppercase tracking-[0.3em]">
+            Terminal / {category ? "Category" : type ? "Collection" : "Prime"}
+          </span>
+        </div>
+        <h1 className="text-5xl font-black tracking-tighter text-white uppercase italic">
+          {displayTitle}
+        </h1>
+      </div>
+
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        {products.length > 0 ? (
+          products.map((product) => (
+            <Card key={product._id} className="bg-gray-900/40 border-gray-800 hover:border-[#00f0ff]/50 transition-all group overflow-hidden">
+              <CardHeader>
+                <div className="flex justify-between items-start mb-2">
+                  <CardTitle className="text-xl font-bold text-white group-hover:text-[#00f0ff] transition-colors">
+                    {product.name}
+                  </CardTitle>
+                  {product.featured && (
+                    <Badge className="bg-[#ff0055] text-white border-none">PRIME</Badge>
+                  )}
+                </div>
+                <CardDescription className="text-gray-400 line-clamp-2 italic text-xs">
+                  {product.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative h-64 overflow-hidden rounded-md mb-6 bg-black border border-gray-800">
+                  <img 
+                    src={product.image_url} 
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100"
+                    onError={(e) => { e.target.src = "https://placehold.co/600x400/111/333?text=NO_SIGNAL"; }}
+                  />
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] text-gray-600 block uppercase tracking-widest">Price</span>
+                    <span className="text-2xl font-black text-white">${product.price.toFixed(2)}</span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black font-bold"
+                    onClick={() => handleAddToCart(product)}
+                  >
+                    ACQUIRE
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full flex flex-col items-center justify-center py-32 border border-dashed border-gray-800 rounded-xl">
+             <div className="text-gray-600 font-mono text-sm mb-4 animate-pulse">ERROR: DATA_NOT_FOUND</div>
+             <p className="text-gray-500 italic">No artifacts matches your current frequency.</p>
+             <Button 
+                variant="link" 
+                className="mt-4 text-[#ff0055]" 
+                onClick={() => window.location.href = '/'}
+              >
+                Return Home
+              </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

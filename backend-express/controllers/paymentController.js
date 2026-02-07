@@ -5,57 +5,56 @@ const Product = require('../models/Product');
 const PaymentTransaction = require('../models/PaymentTransaction');
 
 // @desc    Create checkout session
-// @route   POST /api/payment/checkout
-// @access  Private
 exports.createCheckoutSession = async (req, res, next) => {
   try {
-    const { origin_url } = req.body;
+    const { origin_url, shippingDetails } = req.body;
 
-    // Get cart items
+    // DEBUG LOG: Verify the user ID from the token
+    console.log(">>> CHECKOUT INITIATED FOR USER ID:", req.user.id);
+
     const cartItems = await CartItem.find({ user: req.user.id }).populate('product');
 
-    if (cartItems.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Cart is empty'
+    // DEBUG LOG: Check what MongoDB returned
+    console.log(">>> ITEMS FOUND IN DB:", cartItems.length);
+
+    if (!cartItems || cartItems.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Cart is empty in the database. Ensure items are saved to MongoDB, not just local state.' 
       });
     }
 
-    // Calculate total and prepare order items
     let totalAmount = 0;
     const orderItems = [];
 
     for (const item of cartItems) {
       const product = item.product;
-      if (!product) continue;
+      if (!product || product.stock < item.quantity) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Item ${product?.name || 'Unknown'} is out of stock` 
+        });
+      }
 
-      const itemTotal = product.price * item.quantity;
-      totalAmount += itemTotal;
-
+      totalAmount += product.price * item.quantity;
       orderItems.push({
         product: product._id,
         product_name: product.name,
         quantity: item.quantity,
-        price: product.price
+        price: product.price,
+        image_url: product.image_url
       });
     }
 
-    // Create order
     const order = await Order.create({
       user: req.user.id,
+      user_name: req.user.name,
       user_email: req.user.email,
       items: orderItems,
       total_amount: totalAmount,
+      shipping_address: shippingDetails,
       status: 'pending'
     });
-
-    // Create Stripe checkout session
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return res.status(500).json({
-        success: false,
-        error: 'Stripe not configured'
-      });
-    }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -63,10 +62,8 @@ exports.createCheckoutSession = async (req, res, next) => {
       line_items: orderItems.map(item => ({
         price_data: {
           currency: 'usd',
-          product_data: {
-            name: item.product_name,
-          },
-          unit_amount: Math.round(item.price * 100), // Convert to cents
+          product_data: { name: item.product_name, images: item.image_url ? [item.image_url] : [] },
+          unit_amount: Math.round(item.price * 100),
         },
         quantity: item.quantity,
       })),
@@ -78,121 +75,36 @@ exports.createCheckoutSession = async (req, res, next) => {
       }
     });
 
-    // Update order with session ID
     order.payment_session_id = session.id;
     await order.save();
 
-    // Create payment transaction
     await PaymentTransaction.create({
       session_id: session.id,
       order: order._id,
       user: req.user.id,
       amount: totalAmount,
-      currency: 'usd',
-      status: 'pending',
-      payment_status: 'initiated'
+      status: 'pending'
     });
 
-    res.status(200).json({
-      success: true,
-      url: session.url,
-      session_id: session.id
-    });
+    res.status(200).json({ success: true, url: session.url });
   } catch (err) {
+    console.error(">>> CHECKOUT ERROR:", err);
     next(err);
   }
 };
 
-// @desc    Get payment status
-// @route   GET /api/payment/status/:sessionId
-// @access  Private
+// @desc    Get status
 exports.getPaymentStatus = async (req, res, next) => {
   try {
     const { sessionId } = req.params;
-
-    // Check if already processed
-    const existingTransaction = await PaymentTransaction.findOne({
-      session_id: sessionId,
-      payment_status: 'paid'
-    });
-
-    if (existingTransaction) {
-      return res.status(200).json({
-        success: true,
-        data: existingTransaction
-      });
-    }
-
-    // Get session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    // Update transaction
-    await PaymentTransaction.findOneAndUpdate(
-      { session_id: sessionId },
-      {
-        status: session.status,
-        payment_status: session.payment_status
-      }
-    );
-
-    // If paid, update order and clear cart
-    if (session.payment_status === 'paid') {
-      const orderId = session.metadata.order_id;
-
-      await Order.findByIdAndUpdate(orderId, { status: 'completed' });
-      await CartItem.deleteMany({ user: req.user.id });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        session_id: sessionId,
-        status: session.status,
-        payment_status: session.payment_status,
-        amount_total: session.amount_total,
-        currency: session.currency
-      }
-    });
+    res.status(200).json({ success: true, data: session });
   } catch (err) {
     next(err);
   }
 };
 
-// @desc    Stripe webhook
-// @route   POST /api/payment/webhook/stripe
-// @access  Public
-exports.stripeWebhook = async (req, res, next) => {
-  const sig = req.headers['stripe-signature'];
-
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // Handle the event
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    // Update payment transaction
-    await PaymentTransaction.findOneAndUpdate(
-      { session_id: session.id },
-      {
-        status: 'complete',
-        payment_status: 'paid'
-      }
-    );
-
-    // Update order
-    const orderId = session.metadata.order_id;
-    await Order.findByIdAndUpdate(orderId, { status: 'completed' });
-  }
-
+// @desc    Webhook
+exports.stripeWebhook = async (req, res) => {
   res.status(200).json({ received: true });
 };

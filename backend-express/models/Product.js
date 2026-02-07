@@ -1,3 +1,4 @@
+// models/Product.js
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
@@ -18,7 +19,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Please add a category'],
-    enum: ['figures', 'clothing', 'posters', 'accessories', 'manga', 'collectibles']
+    enum: ['figures', 'clothing', 'posters', 'accessories', 'manga', 'collectibles', 'media']
   },
   image_url: {
     type: String,
@@ -30,6 +31,20 @@ const productSchema = new mongoose.Schema({
     default: 100,
     min: 0
   },
+  featured: {
+    type: Boolean,
+    default: false
+  },
+  discount: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  tags: [{
+    type: String,
+    trim: true
+  }],
   createdAt: {
     type: Date,
     default: Date.now

@@ -1,3 +1,4 @@
+// controllers/productController.js - COMPLETE VERSION
 const Product = require('../models/Product');
 
 // @desc    Get all products
@@ -5,8 +6,11 @@ const Product = require('../models/Product');
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
-    const { category } = req.query;
-    const query = category ? { category } : {};
+    const { category, featured } = req.query;
+    const query = {};
+    
+    if (category) query.category = category;
+    if (featured === 'true') query.featured = true;
 
     const products = await Product.find(query).sort({ createdAt: -1 });
 
@@ -48,6 +52,11 @@ exports.getProduct = async (req, res, next) => {
 // @access  Private/Admin
 exports.createProduct = async (req, res, next) => {
   try {
+    // Parse tags if they're sent as comma-separated string
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = req.body.tags.split(',').map(tag => tag.trim());
+    }
+    
     const product = await Product.create(req.body);
 
     res.status(201).json({
@@ -64,6 +73,11 @@ exports.createProduct = async (req, res, next) => {
 // @access  Private/Admin
 exports.updateProduct = async (req, res, next) => {
   try {
+    // Parse tags if they're sent as comma-separated string
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = req.body.tags.split(',').map(tag => tag.trim());
+    }
+    
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,

@@ -1,3 +1,4 @@
+// controllers/authController.js - FIXED VERSION
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { validationResult } = require('express-validator');
@@ -33,11 +34,11 @@ exports.signup = async (req, res, next) => {
     // Generate token
     const token = generateToken(user._id);
 
-    // Set cookie
+    // Set cookie - FIXED FOR LOCALHOST
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production', // false for localhost
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
@@ -92,12 +93,20 @@ exports.login = async (req, res, next) => {
     // Generate token
     const token = generateToken(user._id);
 
-    // Set cookie
+    // Set cookie - FIXED FOR LOCALHOST
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production', // false for localhost
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+
+    // Also set a non-httpOnly cookie for frontend access if needed
+    res.cookie('token', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
     });
 
     res.status(200).json({
@@ -120,9 +129,18 @@ exports.login = async (req, res, next) => {
 // @route   POST /api/auth/logout
 // @access  Private
 exports.logout = async (req, res, next) => {
-  res.cookie('auth_token', 'none', {
-    expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true
+  res.cookie('auth_token', '', {
+    expires: new Date(Date.now()),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
+  
+  res.cookie('token', '', {
+    expires: new Date(Date.now()),
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   });
 
   res.status(200).json({

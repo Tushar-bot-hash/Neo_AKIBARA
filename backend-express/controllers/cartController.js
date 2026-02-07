@@ -25,40 +25,41 @@ exports.getCart = async (req, res, next) => {
 // @access  Private
 exports.addToCart = async (req, res, next) => {
   try {
-    const { product_id, quantity } = req.body;
+    // ALIGNMENT: Destructure 'productId' to match CartContext.jsx fetch body
+    const { productId, quantity } = req.body;
 
-    // Check if product exists
-    const product = await Product.findById(product_id);
+    // 1. Check if product exists in MongoDB
+    const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
         success: false,
-        error: 'Product not found'
+        error: 'Product not found in database'
       });
     }
 
-    // Check if item already in cart
-    const existingItem = await CartItem.findOne({
+    // 2. Check if item already exists in this user's cart
+    let cartItem = await CartItem.findOne({
       user: req.user.id,
-      product: product_id
+      product: productId
     });
 
-    if (existingItem) {
-      // Update quantity
-      existingItem.quantity += quantity;
-      await existingItem.save();
+    if (cartItem) {
+      // Update existing quantity
+      cartItem.quantity += (Number(quantity) || 1);
+      await cartItem.save();
 
       return res.status(200).json({
         success: true,
-        message: 'Cart updated',
-        data: existingItem
+        message: 'Cart quantity updated',
+        data: cartItem
       });
     }
 
-    // Create new cart item
-    const cartItem = await CartItem.create({
+    // 3. Create new cart item document
+    cartItem = await CartItem.create({
       user: req.user.id,
-      product: product_id,
-      quantity
+      product: productId,
+      quantity: Number(quantity) || 1
     });
 
     res.status(201).json({
@@ -80,9 +81,9 @@ exports.updateCartItem = async (req, res, next) => {
 
     const cartItem = await CartItem.findOneAndUpdate(
       { _id: req.params.id, user: req.user.id },
-      { quantity },
+      { quantity: Number(quantity) },
       { new: true, runValidators: true }
-    );
+    ).populate('product'); // Populate so frontend gets full item info immediately
 
     if (!cartItem) {
       return res.status(404).json({
@@ -93,7 +94,7 @@ exports.updateCartItem = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Cart updated',
+      message: 'Quantity updated',
       data: cartItem
     });
   } catch (err) {
@@ -127,7 +128,7 @@ exports.removeFromCart = async (req, res, next) => {
   }
 };
 
-// @desc    Clear cart
+// @desc    Clear entire cart
 // @route   DELETE /api/cart
 // @access  Private
 exports.clearCart = async (req, res, next) => {
@@ -136,7 +137,7 @@ exports.clearCart = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Cart cleared'
+      message: 'Cart cleared successfully'
     });
   } catch (err) {
     next(err);

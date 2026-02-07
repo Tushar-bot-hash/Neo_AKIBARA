@@ -21,27 +21,40 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Adjusted for deployment: helmet can sometimes block images from external URLs
 app.use(helmet({ contentSecurityPolicy: false }));
 
+// UPDATED CORS: Added support for production Netlify URL
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (origin.includes('localhost')) {
+    
+    const allowedOrigins = [
+      'localhost',
+      'netlify.app', // Allows any netlify preview or production site
+      'render.com'
+    ];
+
+    const isAllowed = allowedOrigins.some(allowed => origin.includes(allowed));
+
+    if (isAllowed) {
       return callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(new Error('Not allowed by CORS'));
     }
-    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Set-Cookie']
 };
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// 2. DATA PARSERS (CRITICAL: Must be before routes)
+// 2. DATA PARSERS
 app.use(cookieParser());
-// Note: If your Stripe webhook needs express.raw, 
-// it must be defined in the payment router BEFORE this json parser runs.
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -49,7 +62,7 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP'
+  message: { error: 'Too many requests from this IP, please try again after 10 minutes' }
 });
 app.use('/api/', limiter);
 
@@ -73,8 +86,9 @@ app.use('/api/*', (req, res) => {
 
 app.use(errorHandler);
 
+// UPDATED PORT LOGIC: Added '0.0.0.0' for Render's network discovery
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 NEURAL_LINK_ESTABLISHED on port ${PORT}`);
 });
 

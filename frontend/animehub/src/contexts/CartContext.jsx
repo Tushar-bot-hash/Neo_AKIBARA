@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '@/services/authService';
+// Import the base api instance you exported as default
+import api from '@/services/authService'; 
 
 const CartContext = createContext();
 
@@ -14,21 +16,18 @@ export const CartProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper for Auth Headers
-  const getHeaders = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
-  });
+  // NOTE: We no longer need getHeaders()! 
+  // Your axios interceptor in authService.js handles tokens automatically.
 
-  // 1. Fixed Fetch Logic: Backend uses 'data', not 'items'
   const fetchCart = async () => {
     if (!authService.isAuthenticated()) {
       setLoading(false);
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/api/cart', { headers: getHeaders() });
-      const result = await response.json();
+      // Uses the dynamic Render URL from your api service
+      const response = await api.get('/cart');
+      const result = response.data;
       
       if (result.success && Array.isArray(result.data)) {
         setCartItems(result.data);
@@ -53,50 +52,35 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // 2. Persistent Add: Saves to MongoDB first
   const addToCart = async (product) => {
     try {
-      const response = await fetch('http://localhost:5000/api/cart', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ 
-          productId: product._id || product.id, 
-          quantity: 1 
-        })
+      const response = await api.post('/cart', { 
+        productId: product._id || product.id, 
+        quantity: 1 
       });
 
-      if (!response.ok) throw new Error("Sync failed");
-      
-      // Refresh local state from DB
-      await fetchCart();
+      if (response.status === 200 || response.status === 201) {
+        await fetchCart();
+      }
     } catch (error) {
       console.error("Cart sync error:", error);
     }
   };
 
-  // 3. Database-linked Update: Uses MongoDB _id
   const updateQuantity = async (itemId, quantity) => {
     if (quantity < 1) return removeFromCart(itemId);
     try {
-      const response = await fetch(`http://localhost:5000/api/cart/${itemId}`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify({ quantity })
-      });
-      if (response.ok) await fetchCart();
+      await api.put(`/cart/${itemId}`, { quantity });
+      await fetchCart();
     } catch (err) {
       console.error("Failed to update quantity:", err);
     }
   };
 
-  // 4. Database-linked Remove
   const removeFromCart = async (itemId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/cart/${itemId}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (response.ok) {
+      const response = await api.delete(`/cart/${itemId}`);
+      if (response.status === 200) {
         setCartItems(prev => prev.filter(item => item._id !== itemId));
       }
     } catch (err) {
@@ -106,20 +90,11 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
-      await fetch('http://localhost:5000/api/cart', { method: 'DELETE', headers: getHeaders() });
+      await api.delete('/cart');
       setCartItems([]);
     } catch (err) {
       console.error("Purge failed:", err);
     }
-  };
-
-  const login = async (credentials) => {
-    const result = await authService.login(credentials);
-    if (result.user) {
-      setUser(result.user);
-      await fetchCart();
-    }
-    return { success: !!result.user, ...result };
   };
 
   const logout = () => {
@@ -128,7 +103,6 @@ export const CartProvider = ({ children }) => {
     setCartItems([]);
   };
 
-  // 5. Calculations using Populated Data
   const totalItems = (cartItems || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
   
   const totalPrice = (cartItems || []).reduce((sum, item) => {
@@ -146,7 +120,6 @@ export const CartProvider = ({ children }) => {
       clearCart,
       user,
       loading,
-      login,
       logout,
       totalItems,
       totalPrice,

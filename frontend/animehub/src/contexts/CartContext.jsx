@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '@/services/authService';
-// Import the base api instance you exported as default
-import api from '@/services/authService'; 
+import api, { authService } from '@/services/api'; 
 
 const CartContext = createContext();
 

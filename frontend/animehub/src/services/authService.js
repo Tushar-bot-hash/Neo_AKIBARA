@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Dynamically switch between Render and Localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// 1. IMPROVED BASE URL LOGIC
+// Checks for the VITE variable, otherwise uses your Render URL as the primary production fallback
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://neo-akibara-backend.onrender.com';
 const API_URL = `${API_BASE_URL}/api`;
 
 const api = axios.create({
@@ -9,7 +10,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Interceptor to attach Token to every request automatically
+// 2. INTERCEPTOR (Your existing logic is solid)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -22,86 +23,23 @@ export const authService = {
   // Login user
   async login(email, password) {
     try {
-      console.log('🔐 Attempting login...', { email });
-      
+      console.log('🔐 Attempting login at:', API_URL);
       const response = await api.post('/auth/login', { email, password });
       
       if (response.data.success) {
-        // SAVE BOTH USER AND TOKEN
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('token', response.data.token); 
-        
-        return {
-          success: true,
-          user: response.data.user,
-          token: response.data.token
-        };
+        return { success: true, user: response.data.user, token: response.data.token };
       }
-      return {
-        success: false,
-        error: { message: response.data.error || 'Login failed' }
-      };
+      return { success: false, error: { message: response.data.error || 'Login failed' } };
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data || { message: 'Login failed' }
-      };
+      console.error('❌ Login error:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data || { message: 'Login failed' } };
     }
   },
 
-  // Register user
-  async register(userData) {
-    try {
-      const response = await api.post('/auth/signup', userData);
-      
-      if (response.data.success) {
-        // SAVE BOTH USER AND TOKEN
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
-
-        return {
-          success: true,
-          user: response.data.user,
-          token: response.data.token
-        };
-      }
-      return {
-        success: false,
-        error: { message: response.data.error || 'Registration failed' }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data || { message: 'Registration failed' }
-      };
-    }
-  },
-
-  // Check authentication with backend
-  async checkAuth() {
-    try {
-      const response = await api.get('/auth/me');
-      return {
-        success: true,
-        user: response.data.data
-      };
-    } catch (error) {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      return { success: false, error: 'Not authenticated' };
-    }
-  },
-
-  // Logout
-  async logout() {
-    try {
-      await api.post('/auth/logout');
-    } finally {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-    }
-  },
-
+  // ... (keep the rest of your register, checkAuth, and logout methods as they were)
+  
   getCurrentUser() {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
@@ -111,3 +49,5 @@ export const authService = {
     return !!localStorage.getItem('token'); 
   }
 };
+
+export default api;

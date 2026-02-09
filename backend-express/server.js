@@ -21,27 +21,28 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Adjusted for deployment: helmet can sometimes block images from external URLs
+// Fixed Helmet for deployment (allows images from your database/external sources)
 app.use(helmet({ contentSecurityPolicy: false }));
 
-// UPDATED CORS: Added support for production Netlify URL
+// --- UPDATED CORS LOGIC ---
+const allowedOrigins = [
+  'http://localhost:5173', // Vite default
+  'http://localhost:5000',
+  process.env.FRONTEND_URL  // Your Netlify URL (set this in Render Dashboard!)
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [
-      'localhost',
-      'netlify.app', // Allows any netlify preview or production site
-      'render.com'
-    ];
-
-    const isAllowed = allowedOrigins.some(allowed => origin.includes(allowed));
+    // Allow if origin is in the list or is a netlify subdomain
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('netlify.app');
 
     if (isAllowed) {
-      return callback(null, true);
+      callback(null, true);
     } else {
-      console.log("Blocked by CORS:", origin);
+      console.log("❌ Blocked by CORS:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -51,18 +52,18 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests
 
 // 2. DATA PARSERS
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 3. RATE LIMITING
+// 3. RATE LIMITING (Slightly increased for production testing)
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 100,
-  message: { error: 'Too many requests from this IP, please try again after 10 minutes' }
+  max: 500, // Increased so you don't block yourself while debugging
+  message: { error: 'Too many requests, please try again later' }
 });
 app.use('/api/', limiter);
 
@@ -86,9 +87,10 @@ app.use('/api/*', (req, res) => {
 
 app.use(errorHandler);
 
-// UPDATED PORT LOGIC: Added '0.0.0.0' for Render's network discovery
+// --- UPDATED PORT LOGIC ---
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
+// Note: Removed '0.0.0.0' to let Render manage the binding naturally
+const server = app.listen(PORT, () => {
   console.log(`🚀 NEURAL_LINK_ESTABLISHED on port ${PORT}`);
 });
 

@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
+// 1. Import your central API config
+import api from "@/api"; 
 
 export default function HomePage() {
-  // Capture BOTH 'category' (from /products/:category) 
-  // and 'type' (from /collections/:type)
   const { category, type } = useParams(); 
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -21,35 +21,33 @@ export default function HomePage() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        let url = 'http://localhost:5000/api/products';
-        let queryParam = '';
-
-        // 1. Determine the filter based on the URL
+        // 2. Build your query parameters object
+        const params = {};
         if (category) {
-          queryParam = `category=${category}`;
+          params.category = category;
         } else if (type) {
-          // Mapping 'limited-edition' URL slug to whatever field your DB uses
-          // Usually this would be a 'collection' or 'tag' field
-          queryParam = `collection=${type}`; 
+          params.collection = type; 
         } else {
-          queryParam = 'featured=true';
+          params.featured = 'true';
         }
         
-        const res = await fetch(`${url}?${queryParam}`);
-        const json = await res.json();
+        // 3. Use the 'api' instance. 
+        // It already knows the Base URL (Render) and handles JSON automatically.
+        const res = await api.get('/products', { params });
         
-        if (json.success) {
-          setProducts(json.data);
+        if (res.data.success) {
+          setProducts(res.data.data);
         }
       } catch (err) {
-        console.error("Failed to fetch products:", err);
+        // Log errors clearly for debugging production connection issues
+        console.error("❌ Neural Link Failure:", err.response?.data || err.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [category, type]); // REFRESH whenever category OR type changes
+  }, [category, type]);
 
   const handleAddToCart = (product) => {
     const cartProduct = {
@@ -67,7 +65,6 @@ export default function HomePage() {
     });
   };
 
-  // Helper to format the title nicely (e.g., 'limited-edition' -> 'LIMITED EDITION')
   const displayTitle = (category || type || "Featured Artifacts").replace(/-/g, ' ');
 
   if (loading) {
@@ -80,7 +77,6 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Dynamic Header */}
       <div className="mb-12 border-b border-gray-800 pb-8">
         <div className="flex items-center gap-3 mb-2">
           {type ? <Sparkles className="h-5 w-5 text-[#ff0055]" /> : <Zap className="h-5 w-5 text-[#00f0ff]" />}
@@ -93,7 +89,6 @@ export default function HomePage() {
         </h1>
       </div>
 
-      {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
         {products.length > 0 ? (
           products.map((product) => (

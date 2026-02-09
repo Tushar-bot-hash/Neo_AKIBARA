@@ -16,28 +16,40 @@ connectDB();
 
 const app = express();
 
+/**
+ * 🚀 PROXY CONFIGURATION (Crucial for Render/Netlify)
+ * Tells Express to trust the 'X-Forwarded-For' header sent by Render's proxy.
+ * This fixes the ERR_ERL_UNEXPECTED_X_FORWARDED_FOR error.
+ */
+app.set('trust proxy', 1); 
+
 // 1. SECURITY & LOGGING MIDDLEWARE
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Fixed Helmet for deployment (allows images from your database/external sources)
-app.use(helmet({ contentSecurityPolicy: false }));
+// Helmet config: Allow images from your MongoDB/external sources to load in the browser
+app.use(helmet({ 
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" } 
+}));
 
 // --- UPDATED CORS LOGIC ---
 const allowedOrigins = [
-  'http://localhost:5173', // Vite default
+  'http://localhost:5173', 
   'http://localhost:5000',
-  process.env.FRONTEND_URL  // Your Netlify URL (set this in Render Dashboard!)
-];
+  'https://neo-akihabara.netlify.app', // Replace with your ACTUAL Netlify URL
+  process.env.FRONTEND_URL
+].filter(Boolean); // Removes undefined values
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
+    // Allow requests with no origin (like mobile apps)
     if (!origin) return callback(null, true);
     
-    // Allow if origin is in the list or is a netlify subdomain
-    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('netlify.app');
+    const isAllowed = allowedOrigins.includes(origin) || 
+                      origin.endsWith('netlify.app') ||
+                      origin.includes('onrender.com');
 
     if (isAllowed) {
       callback(null, true);
@@ -48,22 +60,26 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Set-Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // 2. DATA PARSERS
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 3. RATE LIMITING (Slightly increased for production testing)
+// 3. RATE LIMITING
 const limiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 500, // Increased so you don't block yourself while debugging
-  message: { error: 'Too many requests, please try again later' }
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 500, 
+  standardHeaders: true, 
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+  // Optional: removes the validation check that caused the crash
+  validate: { xForwardedForHeader: false } 
 });
 app.use('/api/', limiter);
 
@@ -76,7 +92,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/payment', require('./routes/payment')); 
 app.use('/api/admin', require('./routes/admin'));
 
-// Health check
+// Health checks
 app.get('/api', (req, res) => res.json({ status: 'operational', version: '1.0.0' }));
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'healthy' }));
 
@@ -87,9 +103,7 @@ app.use('/api/*', (req, res) => {
 
 app.use(errorHandler);
 
-// --- UPDATED PORT LOGIC ---
 const PORT = process.env.PORT || 5000;
-// Note: Removed '0.0.0.0' to let Render manage the binding naturally
 const server = app.listen(PORT, () => {
   console.log(`🚀 NEURAL_LINK_ESTABLISHED on port ${PORT}`);
 });

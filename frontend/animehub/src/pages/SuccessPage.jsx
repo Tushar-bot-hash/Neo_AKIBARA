@@ -8,42 +8,46 @@ import api from "../services/api";
 export default function SuccessPage() {
   const { cart, clearCart } = useCart();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState("verifying"); // verifying, success, error
+  const [status, setStatus] = useState("verifying");
   const [orderData, setOrderData] = useState(null);
   
-  // Use a ref to prevent double-execution in React Strict Mode
   const processing = useRef(false);
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
+      // Guard: Ensure we have a session and aren't already mid-process
       if (!sessionId || processing.current) return;
       
       processing.current = true;
 
       try {
-        // 1. VERIFY PAYMENT STATUS
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
-        if (verifyData.success && verifyData.data.payment_status === "paid") {
+        // FIXED: Optional chaining (?.) prevents crashes if data is missing
+        if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
-          // 2. PREPARE CLEAN ITEM DATA
-          // Pulling directly from cart state ensures we get the image_url and full names
-          const orderItems = cart.map(item => ({
-            product: item._id,
-            product_name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            image_url: item.image_url 
-          }));
+          // Prepare Item Data from Cart Context (Snapshots image_url and names)
+          const orderItems = (cart && cart.length > 0) 
+            ? cart.map(item => ({
+                product: item._id,
+                product_name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                image_url: item.image_url 
+              }))
+            : [];
 
-          // 3. TRIGGER ORDER CREATION
-          // We pass the full orderItems array here, bypassing Stripe's metadata limits
+          // Guard: If cart is empty and metadata is missing, we might have an issue
+          const finalItems = orderItems.length > 0 
+            ? orderItems 
+            : (stripeSession.metadata?.items ? JSON.parse(stripeSession.metadata.items) : []);
+
           const orderResponse = await api.post('/orders', {
-            items: orderItems.length > 0 ? orderItems : (stripeSession.metadata?.items ? JSON.parse(stripeSession.metadata.items) : []),
-            total_amount: stripeSession.amount_total / 100,
+            items: finalItems,
+            total_amount: (stripeSession.amount_total || 0) / 100,
             payment_session_id: sessionId,
             shipping_address: {
               street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
@@ -54,7 +58,7 @@ export default function SuccessPage() {
             payment_method: 'Stripe'
           });
 
-          if (orderResponse.data.success) {
+          if (orderResponse.data?.success) {
             setStatus("success");
             setOrderData(stripeSession);
             clearCart(); 
@@ -67,13 +71,15 @@ export default function SuccessPage() {
       } catch (error) {
         console.error("Critical Uplink Error:", error);
         setStatus("error");
+        // Reset processing on error to allow for potential retry/refresh
+        processing.current = false;
       }
     };
 
     verifyAndSaveOrder();
   }, [sessionId, cart, clearCart]);
 
-  // --- UI: LOADING ---
+  // --- UI: RENDER LOGIC ---
   if (status === "verifying") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
@@ -83,19 +89,17 @@ export default function SuccessPage() {
     );
   }
 
-  // --- UI: ERROR ---
   if (status === "error") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <ShieldAlert className="h-12 w-12 text-[#ff0055] mx-auto mb-4" />
-        <h2 className="text-2xl font-black text-white mb-4 uppercase">Archive_Sync_Failed</h2>
-        <p className="text-gray-400 mb-8 font-mono text-sm">COULD NOT VERIFY TRANSACTION DATA. CONTACT SYSTEM ADMINISTRATOR.</p>
+        <h2 className="text-2xl font-black text-white mb-4 uppercase italic">Archive_Sync_Failed</h2>
+        <p className="text-gray-400 mb-8 font-mono text-xs">COULD NOT VERIFY TRANSACTION DATA. DATABASE REJECTED ENTRY.</p>
         <Link to="/cart"><Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RETURN TO CART</Button></Link>
       </div>
     );
   }
 
-  // --- UI: SUCCESS ---
   return (
     <div className="max-w-7xl mx-auto px-4 py-32 text-center">
       <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 mb-8 border border-green-500/20">

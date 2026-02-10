@@ -1,6 +1,52 @@
 const Order = require('../models/Order');
 
-// @desc    Get user orders
+// @desc    Create new order
+// @route   POST /api/orders
+// @access  Private
+exports.createOrder = async (req, res, next) => {
+  try {
+    const { 
+      items, 
+      total_amount, 
+      shipping_address, 
+      payment_session_id, 
+      payment_method 
+    } = req.body;
+
+    // Create the order in the database
+    // req.user comes from your 'protect' middleware
+    const order = await Order.create({
+      user: req.user.id,
+      user_name: req.user.name,   
+      user_email: req.user.email, 
+      items: items.map(item => ({
+        product: item.productId || item.id || item._id, 
+        product_name: item.name || item.product?.name || "Unknown Product",
+        quantity: item.quantity,
+        price: item.price || item.product?.price,
+        image_url: item.image || item.image_url || item.product?.image
+      })),
+      total_amount,
+      shipping_address,
+      payment_method: payment_method || 'Stripe',
+      payment_session_id,
+      status: 'processing' 
+    });
+
+    res.status(201).json({
+      success: true,
+      data: order
+    });
+  } catch (err) {
+    console.error("Order Archive Error:", err);
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Database Uplink Failed'
+    });
+  }
+};
+
+// @desc    Get logged in user orders
 // @route   GET /api/orders
 // @access  Private
 exports.getUserOrders = async (req, res, next) => {

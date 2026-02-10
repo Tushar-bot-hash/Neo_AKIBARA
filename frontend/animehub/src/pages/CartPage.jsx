@@ -133,10 +133,10 @@ export default function CartPage() {
               <div className="space-y-3">
                 <Link to="/checkout" className="block w-full">
                   <Button 
-                    className="w-full bg-[#ff0055] hover:bg-[#ff0055]/90 h-14 text-lg font-black italic tracking-widest text-white shadow-[0_0_15px_rgba(255,0,85,0.3)]"
-                  >
-                    PROCEED_TO_CHECKOUT
-                  </Button>
+  className="w-full bg-[#ff0055] hover:bg-[#ff0055]/90 h-14 text-lg font-black italic tracking-widest text-white shadow-[0_0_15px_rgba(255,0,85,0.3)] hover:shadow-[0_0_25px_rgba(255,0,85,0.6)] transition-all duration-300"
+>
+  PROCEED_TO_CHECKOUT
+</Button>
                 </Link>
                 
                 <Button 

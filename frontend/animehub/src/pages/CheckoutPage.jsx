@@ -10,7 +10,6 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
-  // 1. ADD STATE FOR SHIPPING
   const [shippingDetails, setShippingDetails] = useState({
     name: '',
     street: '',
@@ -31,13 +30,14 @@ export default function CheckoutPage() {
 
     try {
       const token = localStorage.getItem('token'); 
-
       if (!token) {
         throw new Error("AUTH_REQUIRED: Please login to authorize transaction.");
       }
 
-      // 2. SEND SHIPPING DETAILS TO BACKEND
-      const response = await fetch('${import.meta.env.VITE_API_BASE_URL}/api/payment/checkout', {
+      // Fallback to localhost if env variable is missing, but backticks are key here!
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+      const response = await fetch(`${API_BASE}/api/payment/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,12 +45,11 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({ 
           origin_url: window.location.origin,
-          // This matches the destructuring in your controller
           shippingDetails: {
             street: shippingDetails.street,
             city: shippingDetails.city,
             zip: shippingDetails.zip,
-            country: "Cyber-State" // Default or add another input
+            country: "Cyber-State"
           }
         }),
       });
@@ -58,7 +57,7 @@ export default function CheckoutPage() {
       const data = await response.json();
 
       if (data.success && data.url) {
-        // 3. REDIRECT TO STRIPE
+        // Redirecting to Stripe Checkout session
         window.location.href = data.url;
       } else {
         throw new Error(data.error || "Uplink failed: No session URL received");

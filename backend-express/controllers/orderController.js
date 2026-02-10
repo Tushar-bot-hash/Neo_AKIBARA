@@ -13,45 +13,37 @@ exports.createOrder = async (req, res, next) => {
       payment_method 
     } = req.body;
 
-    // Safety check: If items is missing or not an array
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please add items to your order'
-      });
+    // Safety check to prevent empty archives
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, error: "No items detected" });
     }
 
     const order = await Order.create({
       user: req.user.id,
-      user_name: req.user.name,   
-      user_email: req.user.email, 
+      user_name: req.user.name,
+      user_email: req.user.email,
+      // Map items to match your Schema fields exactly
       items: items.map(item => ({
-        // Support multiple ID formats
-        product: item.productId || item.id || item._id || item.product, 
-        // Support various naming conventions from frontend
-        product_name: item.name || item.product_name || item.product?.name || "Premium Item",
+        product: item.productId || item._id || item.id,
+        product_name: item.name || item.product_name || "Unknown Product",
         quantity: item.quantity || 1,
-        price: item.price || item.product?.price || 0,
-        // The Fix: Ensure image_url is captured or set to a fallback
-        image_url: item.image || item.image_url || item.product?.image || item.img_url || 'https://via.placeholder.com/150'
+        price: item.price || 0,
+        image_url: item.image || item.image_url || "/placeholder.png" 
       })),
       total_amount,
-      shipping_address,
+      shipping_address: {
+        street: shipping_address?.street || "Digital Delivery",
+        city: shipping_address?.city || "Neo-Tokyo",
+        zip: shipping_address?.zip || "000000"
+      },
       payment_method: payment_method || 'Stripe',
       payment_session_id,
       status: 'processing' 
     });
 
-    res.status(201).json({
-      success: true,
-      data: order
-    });
+    res.status(201).json({ success: true, data: order });
   } catch (err) {
-    console.error("Order Archive Error:", err);
-    res.status(400).json({
-      success: false,
-      error: err.message || 'Database Uplink Failed'
-    });
+    res.status(400).json({ success: false, error: err.message });
   }
 };
 // @desc    Get logged in user orders

@@ -3,49 +3,51 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Package, ArrowRight, Loader2, ShieldAlert } from "lucide-react"; 
 import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
-import api from "../services/api"; //
+import api from "../services/api"; 
 
 export default function SuccessPage() {
   const { cart, clearCart } = useCart();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("verifying");
-  const [orderData, setOrderData] = useState(null);
   
   const processing = useRef(false);
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
-      // 1. Guard Clause: Prevent double-execution in React Strict Mode
+      // 1. Guard Clause: Prevent double-execution or execution without ID
       if (!sessionId || processing.current) return;
-      
       processing.current = true;
 
       try {
-        // 2. Verify Payment Status via your API service
+        // 2. Verify Payment Status
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
-        // FIXED: Optional chaining (?.) prevents the "undefined" TypeError
         if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
-          // 3. Prepare Item Data with Safety Fallbacks
-          // Prioritize fresh CartContext data to ensure image_url is saved
-          const orderItems = (cart && cart.length > 0) 
-            ? cart.map(item => ({
-                product: item._id,
-                product_name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                image_url: item.image_url 
-              }))
-            : (stripeSession.metadata?.items ? JSON.parse(stripeSession.metadata.items) : []);
+          // 3. Robust Item Mapping
+          // If cart is empty (due to refresh), try to recover items from Stripe Metadata
+          let orderItems = [];
+          
+          if (cart && cart.length > 0) {
+            orderItems = cart.map(item => ({
+              product: item._id || item.id,
+              product_name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              image_url: item.image_url || item.image // Ensure we capture the image
+            }));
+          } else if (stripeSession.metadata?.items) {
+            // Fallback: Parse items we sent to Stripe during checkout
+            orderItems = JSON.parse(stripeSession.metadata.items);
+          }
 
-          // 4. Create Order Entry in MongoDB
+          // 4. Final Database Injection
           const orderResponse = await api.post('/orders', {
             items: orderItems,
-            total_amount: (stripeSession.amount_total || 0) / 100,
+            total_amount: stripeSession.amount_total / 100,
             payment_session_id: sessionId,
             shipping_address: {
               street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
@@ -58,18 +60,16 @@ export default function SuccessPage() {
 
           if (orderResponse.data?.success) {
             setStatus("success");
-            setOrderData(stripeSession);
-            clearCart(); 
+            clearCart(); // Only clear cart AFTER DB confirms save
           } else {
-            throw new Error("Order creation failed on backend");
+            throw new Error("ARCHIVE_REJECTED_BY_SERVER");
           }
         } else {
           setStatus("error");
         }
       } catch (error) {
-        console.error("Critical Uplink Error:", error);
+        console.error("CRITICAL_UPLINK_FAILURE:", error);
         setStatus("error");
-        // Reset ref so the user can attempt to refresh/retry if it was a network glitch
         processing.current = false; 
       }
     };
@@ -77,29 +77,28 @@ export default function SuccessPage() {
     verifyAndSaveOrder();
   }, [sessionId, cart, clearCart]);
 
-  // --- UI: LOADING ---
+  // --- RENDERING LOGIC ---
+
   if (status === "verifying") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <Loader2 className="h-12 w-12 text-[#00f0ff] animate-spin mx-auto mb-4" />
-        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase">Initializing_Secure_Log...</h2>
+        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase animate-pulse">Initializing_Secure_Log...</h2>
       </div>
     );
   }
 
-  // --- UI: ERROR ---
   if (status === "error") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <ShieldAlert className="h-12 w-12 text-[#ff0055] mx-auto mb-4" />
         <h2 className="text-2xl font-black text-white mb-4 uppercase italic">Archive_Sync_Failed</h2>
         <p className="text-gray-400 mb-8 font-mono text-xs uppercase">Verification Error or Database Rejection</p>
-        <Link to="/cart"><Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RETURN TO CART</Button></Link>
+        <Link to="/cart"><Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RE-INITIALIZE CART</Button></Link>
       </div>
     );
   }
 
-  // --- UI: SUCCESS ---
   return (
     <div className="max-w-7xl mx-auto px-4 py-32 text-center">
       <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 mb-8 border border-green-500/20">
@@ -110,7 +109,7 @@ export default function SuccessPage() {
         Payment <span className="text-[#00f0ff]">Secured</span>
       </h1>
       <p className="text-gray-500 font-mono mb-12 uppercase tracking-[0.2em] text-xs">
-        TRANSACTION_HASH: {sessionId?.slice(-24)}
+        TRANSACTION_HASH: {sessionId?.slice(-24).toUpperCase()}
       </p>
 
       <div className="max-w-md mx-auto bg-gray-900/40 border border-gray-800 p-8 rounded-2xl mb-12 backdrop-blur-md relative overflow-hidden">

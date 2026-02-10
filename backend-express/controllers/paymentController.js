@@ -1,7 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 const CartItem = require('../models/CartItem');
-const Product = require('../models/Product');
 const PaymentTransaction = require('../models/PaymentTransaction');
 
 // @desc    Create checkout session
@@ -9,24 +8,20 @@ exports.createCheckoutSession = async (req, res, next) => {
   try {
     const { origin_url, shippingDetails } = req.body;
 
-    // DEBUG LOG: Verify the user ID from the token
-    console.log(">>> CHECKOUT INITIATED FOR USER ID:", req.user.id);
-
+    // 1. Fetch user's cart from MongoDB
     const cartItems = await CartItem.find({ user: req.user.id }).populate('product');
-
-    // DEBUG LOG: Check what MongoDB returned
-    console.log(">>> ITEMS FOUND IN DB:", cartItems.length);
 
     if (!cartItems || cartItems.length === 0) {
       return res.status(400).json({ 
-        success: false, 
-        error: 'Cart is empty in the database. Ensure items are saved to MongoDB, not just local state.' 
+        success: true, 
+        error: 'Your cart is empty in the database.' 
       });
     }
 
     let totalAmount = 0;
     const orderItems = [];
 
+    // 2. Validate and map items
     for (const item of cartItems) {
       const product = item.product;
       if (!product || product.stock < item.quantity) {
@@ -46,6 +41,7 @@ exports.createCheckoutSession = async (req, res, next) => {
       });
     }
 
+    // 3. Create the Order Record
     const order = await Order.create({
       user: req.user.id,
       user_name: req.user.name,
@@ -56,18 +52,30 @@ exports.createCheckoutSession = async (req, res, next) => {
       status: 'pending'
     });
 
-    // ... inside createCheckoutSession
-// Inside createCheckoutSession in paymentController.js
-const session = await stripe.checkout.sessions.create({
-  // ... other config
-  success_url: `${origin_url}/order-success?session_id={CHECKOUT_SESSION_ID}`,
-  cancel_url: `${origin_url}/cart`,
-  metadata: {
-    order_id: order._id.toString(), // CRITICAL: This links the session to your DB order
-    user_id: req.user.id.toString()
-  }
-});
+    // 4. Create Stripe Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: orderItems.map(item => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.product_name,
+            images: item.image_url ? [item.image_url] : [],
+          },
+          unit_amount: Math.round(item.price * 100), // Stripe uses cents
+        },
+        quantity: item.quantity,
+      })),
+      success_url: `${origin_url}/order-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin_url}/cart`,
+      metadata: {
+        order_id: order._id.toString(),
+        user_id: req.user.id.toString()
+      }
+    });
 
+    // 5. Save Session ID to Order and Transaction
     order.payment_session_id = session.id;
     await order.save();
 
@@ -79,10 +87,12 @@ const session = await stripe.checkout.sessions.create({
       status: 'pending'
     });
 
+    // 6. Send the URL back to frontend
     res.status(200).json({ success: true, url: session.url });
+
   } catch (err) {
-    console.error(">>> CHECKOUT ERROR:", err);
-    next(err);
+    console.error(">>> STRIPE ERROR:", err);
+    res.status(400).json({ success: false, error: err.message });
   }
 };
 

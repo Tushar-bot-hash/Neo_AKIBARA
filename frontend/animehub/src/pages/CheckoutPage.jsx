@@ -31,17 +31,17 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // 2. CHECK AUTHENTICATION
       const token = localStorage.getItem('token'); 
       if (!token) {
-        throw new Error("AUTH_REQUIRED: Please login to authorize transaction.");
+        throw new Error("Please login to continue.");
       }
 
-      // 3. USE AXIOS INSTANCE INSTEAD OF NATIVE FETCH
-      // This automatically uses your Render URL and attaches the Bearer token
+      // We send the origin_url and shippingDetails. 
+      // The backend handles fetching the cart from DB for security.
       const response = await api.post('/payment/checkout', { 
         origin_url: window.location.origin,
         shippingDetails: {
+          name: shippingDetails.name,
           street: shippingDetails.street,
           city: shippingDetails.city,
           zip: shippingDetails.zip,
@@ -49,26 +49,22 @@ export default function CheckoutPage() {
         }
       });
 
-      // Axios returns the server response in the .data property
-      const data = response.data;
-
-      if (data.success && data.url) {
-        // Redirecting to Stripe Checkout session
-        window.location.href = data.url;
+      if (response.data.success && response.data.url) {
+        // Redirect to Stripe's hosted page
+        window.location.href = response.data.url;
       } else {
-        throw new Error(data.error || "Uplink failed: No session URL received");
+        throw new Error(response.data.error || "Failed to get payment URL");
       }
     } catch (error) {
-      console.error("Stripe Redirect Error:", error);
-      
-      // Handle Axios errors vs generic errors
-      const errorMessage = error.response?.data?.message || error.message || "Failed to establish secure payment tunnel.";
+      console.error("Checkout Error:", error);
+      const errorMessage = error.response?.data?.error || error.message;
       
       toast({
-        title: "CONNECTION_ERROR",
+        title: "UPLINK_FAILED",
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };

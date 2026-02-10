@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CreditCard, Truck, ShieldCheck, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+// 1. IMPORT YOUR API SERVICE
+import api from "@/services/api"; 
 
 export default function CheckoutPage() {
   const { cartItems, totalPrice } = useCart();
@@ -29,32 +31,26 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+      // 2. CHECK AUTHENTICATION
       const token = localStorage.getItem('token'); 
       if (!token) {
         throw new Error("AUTH_REQUIRED: Please login to authorize transaction.");
       }
 
-      // Fallback to localhost if env variable is missing, but backticks are key here!
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
-      const response = await fetch(`${API_BASE}/api/payment/checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          origin_url: window.location.origin,
-          shippingDetails: {
-            street: shippingDetails.street,
-            city: shippingDetails.city,
-            zip: shippingDetails.zip,
-            country: "Cyber-State"
-          }
-        }),
+      // 3. USE AXIOS INSTANCE INSTEAD OF NATIVE FETCH
+      // This automatically uses your Render URL and attaches the Bearer token
+      const response = await api.post('/payment/checkout', { 
+        origin_url: window.location.origin,
+        shippingDetails: {
+          street: shippingDetails.street,
+          city: shippingDetails.city,
+          zip: shippingDetails.zip,
+          country: "Cyber-State"
+        }
       });
 
-      const data = await response.json();
+      // Axios returns the server response in the .data property
+      const data = response.data;
 
       if (data.success && data.url) {
         // Redirecting to Stripe Checkout session
@@ -64,9 +60,13 @@ export default function CheckoutPage() {
       }
     } catch (error) {
       console.error("Stripe Redirect Error:", error);
+      
+      // Handle Axios errors vs generic errors
+      const errorMessage = error.response?.data?.message || error.message || "Failed to establish secure payment tunnel.";
+      
       toast({
         title: "CONNECTION_ERROR",
-        description: error.message || "Failed to establish secure payment tunnel.",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);

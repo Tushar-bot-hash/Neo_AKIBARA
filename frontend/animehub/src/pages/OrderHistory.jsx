@@ -15,6 +15,10 @@ export default function OrderHistory() {
       try {
         const response = await api.get('/orders');
         const result = response.data;
+        
+        // Debugging: Check your browser console to see the data structure
+        console.log("Archive Data Fetched:", result);
+        
         if (result.success) setOrders(result.data);
       } catch (err) {
         console.error("Failed to retrieve archives:", err);
@@ -99,7 +103,7 @@ export default function OrderHistory() {
                   <div className="text-right">
                     <p className="text-[10px] font-mono text-gray-500 uppercase">Total Credits</p>
                     <p className="text-3xl font-black text-white italic tracking-tighter">
-                      ${order.total_amount ? order.total_amount.toFixed(2) : "0.00"}
+                      ${order.total_amount ? Number(order.total_amount).toFixed(2) : "0.00"}
                     </p>
                   </div>
                 </div>
@@ -128,28 +132,36 @@ export default function OrderHistory() {
                       {/* Items with Photos */}
                       <div className="space-y-4">
                         <p className="text-[10px] font-mono text-[#00f0ff] uppercase tracking-widest border-b border-gray-800 pb-2">Payload_Contents</p>
-                        {order.items && order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center group bg-black/40 p-3 rounded-lg border border-gray-800 hover:border-gray-700 transition-all">
-                            <div className="flex items-center gap-4">
-                              {/* Product Thumbnail */}
-                              <div className="h-14 w-14 shrink-0 overflow-hidden rounded bg-gray-900 border border-gray-800 group-hover:border-[#00f0ff]/50 transition-colors">
-                                <img 
-                                  src={item.product?.image_url || item.image_url || "/api/placeholder/60/60"} 
-                                  alt={item.product_name}
-                                  className="h-full w-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                                />
+                        
+                        {/* THE FIX: Check if items exist and map them correctly */}
+                        {order.items && order.items.length > 0 ? (
+                          order.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center group bg-black/40 p-3 rounded-lg border border-gray-800 hover:border-[#00f0ff]/40 transition-all">
+                              <div className="flex items-center gap-4">
+                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded bg-gray-900 border border-gray-800 group-hover:border-[#00f0ff]/50 transition-colors">
+                                  <img 
+                                    src={item.image_url || item.product?.image_url || "https://via.placeholder.com/64?text=IMAGE"} 
+                                    alt={item.product_name}
+                                    className="h-full w-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                                    onError={(e) => { e.target.src = "https://via.placeholder.com/64?text=NOT_FOUND" }}
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <p className="text-sm font-bold text-gray-200 group-hover:text-[#00f0ff] transition-colors uppercase">
+                                    {item.product_name || item.product?.name || "Unknown Unit"}
+                                  </p>
+                                  <p className="text-[10px] font-mono text-gray-500">UNIT_QTY: {item.quantity}</p>
+                                </div>
                               </div>
-                              
-                              <div>
-                                <p className="text-sm font-bold text-gray-200 group-hover:text-[#00f0ff] transition-colors uppercase">
-                                  {item.product_name}
-                                </p>
-                                <p className="text-[10px] font-mono text-gray-500">UNIT_QTY: {item.quantity}</p>
-                              </div>
+                              <p className="text-sm font-mono text-white">${item.price ? Number(item.price).toFixed(2) : "0.00"}</p>
                             </div>
-                            <p className="text-sm font-mono text-white">${item.price ? item.price.toFixed(2) : "0.00"}</p>
+                          ))
+                        ) : (
+                          <div className="text-gray-600 font-mono text-[10px] italic py-4">
+                            ERROR: NO_ITEM_METADATA_LOCATED
                           </div>
-                        ))}
+                        )}
                       </div>
 
                       {/* Delivery and Data */}
@@ -158,16 +170,16 @@ export default function OrderHistory() {
                           <p className="text-[10px] font-mono text-[#ff0055] uppercase tracking-widest mb-3">Delivery_Node</p>
                           <div className="bg-gray-900/50 p-4 rounded border border-gray-800 font-mono">
                             <p className="text-xs text-gray-400 leading-relaxed uppercase">
-                              ADDR // {order.shipping_address?.street || "Digital Access"}<br />
-                              CITY // {order.shipping_address?.city || "Neo-Tokyo"}<br />
-                              ZIP_ // {order.shipping_address?.zip || "000000"}
+                              ADDR // {order.shipping_address?.street || "Encrypted"}<br />
+                              CITY // {order.shipping_address?.city || "Sector 7"}<br />
+                              ZIP_ // {order.shipping_address?.zip || "00000"}
                             </p>
                           </div>
                         </div>
                          
                         <div className="opacity-40 hover:opacity-100 transition-opacity">
                           <p className="text-[9px] font-mono text-gray-600 uppercase mb-1">Transaction_Hash</p>
-                          <p className="text-[9px] font-mono text-gray-700 truncate">{order.payment_session_id || "LOCAL_TRANS_001"}</p>
+                          <p className="text-[9px] font-mono text-gray-700 truncate">{order.payment_session_id || "N/A"}</p>
                         </div>
                       </div>
 

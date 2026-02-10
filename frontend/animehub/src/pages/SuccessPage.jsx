@@ -15,37 +15,35 @@ export default function SuccessPage() {
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
-      // 1. Guard against double-execution and missing session
+      // 1. Double-execution guard
       if (!sessionId || processing.current) return;
       processing.current = true;
 
       try {
-        // 2. Verify payment status from Stripe via your Backend
+        // 2. Verify payment status from Stripe
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
         if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
-          // 3. Map items to match your Controller's requirements
+          // 3. Map items to match OrderController expectations
           let orderItems = [];
           if (cart && cart.length > 0) {
             orderItems = cart.map(item => ({
-              productId: item._id, // Matches 'item.productId || item._id' in controller
+              productId: item._id, // Controller uses item.productId || item._id
               name: item.name,
               quantity: Number(item.quantity),
               price: Number(item.price),
-              image: item.image_url || item.image
+              image: item.image_url || item.image 
             }));
           } else if (stripeSession.metadata?.items) {
             orderItems = JSON.parse(stripeSession.metadata.items);
           }
 
-          // Stop if no items found
-          if (orderItems.length === 0) throw new Error("NO_ITEMS_IN_MANIFEST");
+          if (orderItems.length === 0) throw new Error("EMPTY_ORDER_DATA");
 
-          // 4. Construct Payload
-          // Note: user_name and user_email are handled by the backend using req.user
+          // 4. Construct payload
           const payload = {
             items: orderItems,
             total_amount: Number(stripeSession.amount_total / 100),
@@ -58,14 +56,14 @@ export default function SuccessPage() {
             payment_method: 'Stripe'
           };
 
-          // 5. POST to your /api/orders endpoint
+          // 5. POST to backend (Interceptor attaches token automatically)
           const orderResponse = await api.post('/orders', payload);
 
           if (orderResponse.data?.success) {
             setStatus("success");
             clearCart(); 
           } else {
-            throw new Error("BACKEND_REJECTION");
+            throw new Error("ORDER_SAVE_FAILED");
           }
         } else {
           setStatus("error");
@@ -73,7 +71,7 @@ export default function SuccessPage() {
       } catch (error) {
         console.error("CRITICAL_UPLINK_FAILURE:", error);
         setStatus("error");
-        // Allow retry if it wasn't a duplicate order issue
+        // Reset processing if error allows for a retry attempt
         processing.current = false; 
       }
     };
@@ -87,9 +85,7 @@ export default function SuccessPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <Loader2 className="h-12 w-12 text-[#00f0ff] animate-spin mx-auto mb-4" />
-        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase animate-pulse">
-          Initializing_Secure_Log...
-        </h2>
+        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase animate-pulse">Initializing_Secure_Log...</h2>
       </div>
     );
   }
@@ -99,13 +95,9 @@ export default function SuccessPage() {
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <ShieldAlert className="h-12 w-12 text-[#ff0055] mx-auto mb-4" />
         <h2 className="text-2xl font-black text-white mb-4 uppercase italic">Archive_Sync_Failed</h2>
-        <p className="text-gray-400 mb-8 font-mono text-xs uppercase">
-          Verification Error or Database Rejection
-        </p>
+        <p className="text-gray-400 mb-8 font-mono text-xs uppercase">Verification Error or Database Rejection</p>
         <Link to="/cart">
-          <Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">
-            RE-INITIALIZE CART
-          </Button>
+          <Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RE-INITIALIZE CART</Button>
         </Link>
       </div>
     );
@@ -120,6 +112,7 @@ export default function SuccessPage() {
       <h1 className="text-6xl font-black italic tracking-tighter uppercase mb-4 text-white">
         Payment <span className="text-[#00f0ff]">Secured</span>
       </h1>
+      
       <p className="text-gray-500 font-mono mb-12 uppercase tracking-[0.2em] text-xs">
         TRANSACTION_HASH: {sessionId?.slice(-24).toUpperCase()}
       </p>

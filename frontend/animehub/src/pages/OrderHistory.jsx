@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, ChevronDown, ChevronUp, Calendar, CreditCard, Box, LayoutGrid } from "lucide-react";
+import { Package, ChevronDown, ChevronUp, Calendar, CreditCard, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// FIX 1: Import your centralized API service
 import api from "@/services/api"; 
 
 export default function OrderHistory() {
@@ -14,11 +13,8 @@ export default function OrderHistory() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // FIX 2: Use the api service instead of a hardcoded localhost fetch
-        // The service automatically attaches your Bearer token and uses the correct Render URL
         const response = await api.get('/orders');
         const result = response.data;
-        
         if (result.success) setOrders(result.data);
       } catch (err) {
         console.error("Failed to retrieve archives:", err);
@@ -128,21 +124,28 @@ export default function OrderHistory() {
                 {expandedOrders[order._id] && (
                   <div className="p-6 bg-black/30 animate-in slide-in-from-top-2 duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      {/* Items */}
+                      
+                      {/* Items with Photos */}
                       <div className="space-y-4">
                         <p className="text-[10px] font-mono text-[#00f0ff] uppercase tracking-widest border-b border-gray-800 pb-2">Payload_Contents</p>
                         {order.items && order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center group">
-                            <div className="flex items-center gap-3">
-                               <div className="h-8 w-8 bg-gray-800 rounded flex items-center justify-center text-[10px] font-mono text-gray-500">
-                                 {idx + 1}
-                               </div>
-                               <div>
-                                 <p className="text-sm font-bold text-gray-200 group-hover:text-[#00f0ff] transition-colors">
-                                   {item.product_name}
-                                 </p>
-                                 <p className="text-[10px] font-mono text-gray-500">UNIT_QTY: {item.quantity}</p>
-                               </div>
+                          <div key={idx} className="flex justify-between items-center group bg-black/40 p-3 rounded-lg border border-gray-800 hover:border-gray-700 transition-all">
+                            <div className="flex items-center gap-4">
+                              {/* Product Thumbnail */}
+                              <div className="h-14 w-14 shrink-0 overflow-hidden rounded bg-gray-900 border border-gray-800 group-hover:border-[#00f0ff]/50 transition-colors">
+                                <img 
+                                  src={item.product?.image_url || item.image_url || "/api/placeholder/60/60"} 
+                                  alt={item.product_name}
+                                  className="h-full w-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                                />
+                              </div>
+                              
+                              <div>
+                                <p className="text-sm font-bold text-gray-200 group-hover:text-[#00f0ff] transition-colors uppercase">
+                                  {item.product_name}
+                                </p>
+                                <p className="text-[10px] font-mono text-gray-500">UNIT_QTY: {item.quantity}</p>
+                              </div>
                             </div>
                             <p className="text-sm font-mono text-white">${item.price ? item.price.toFixed(2) : "0.00"}</p>
                           </div>
@@ -151,22 +154,23 @@ export default function OrderHistory() {
 
                       {/* Delivery and Data */}
                       <div className="space-y-6">
-                         <div>
-                            <p className="text-[10px] font-mono text-[#ff0055] uppercase tracking-widest mb-3">Delivery_Node</p>
-                            <div className="bg-gray-900/50 p-4 rounded border border-gray-800 font-mono">
-                               <p className="text-xs text-gray-400 leading-relaxed uppercase">
-                                 ADDR // {order.shipping_address?.street || "N/A"}<br />
-                                 CITY // {order.shipping_address?.city || "N/A"}<br />
-                                 ZIP_ // {order.shipping_address?.zip || "N/A"}
-                               </p>
-                            </div>
-                         </div>
+                        <div>
+                          <p className="text-[10px] font-mono text-[#ff0055] uppercase tracking-widest mb-3">Delivery_Node</p>
+                          <div className="bg-gray-900/50 p-4 rounded border border-gray-800 font-mono">
+                            <p className="text-xs text-gray-400 leading-relaxed uppercase">
+                              ADDR // {order.shipping_address?.street || "Digital Access"}<br />
+                              CITY // {order.shipping_address?.city || "Neo-Tokyo"}<br />
+                              ZIP_ // {order.shipping_address?.zip || "000000"}
+                            </p>
+                          </div>
+                        </div>
                          
-                         <div className="opacity-40 hover:opacity-100 transition-opacity">
-                            <p className="text-[9px] font-mono text-gray-600 uppercase mb-1">Transaction_Hash</p>
-                            <p className="text-[9px] font-mono text-gray-700 truncate">{order.payment_session_id || "LOCAL_TRANS_001"}</p>
-                         </div>
+                        <div className="opacity-40 hover:opacity-100 transition-opacity">
+                          <p className="text-[9px] font-mono text-gray-600 uppercase mb-1">Transaction_Hash</p>
+                          <p className="text-[9px] font-mono text-gray-700 truncate">{order.payment_session_id || "LOCAL_TRANS_001"}</p>
+                        </div>
                       </div>
+
                     </div>
                   </div>
                 )}

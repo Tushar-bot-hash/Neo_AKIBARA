@@ -20,47 +20,35 @@ export default function SuccessPage() {
       }
 
       try {
-        const token = localStorage.getItem("token");
-        
-        // 1. VERIFY PAYMENT STATUS WITH STRIPE
-        const verifyRes = await fetch(`http://localhost:5000/api/payment/status/${sessionId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const verifyData = await verifyRes.json();
+        // 1. VERIFY PAYMENT STATUS (Using your api service)
+        // This automatically handles the BASE_URL and the Bearer token
+        const verifyRes = await api.get(`/payment/status/${sessionId}`);
+        const verifyData = verifyRes.data;
 
         if (verifyData.success && verifyData.data.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
           // 2. TRIGGER ORDER CREATION IN MONGODB
-          // Note: We pull details from the verified Stripe session
-          const orderResponse = await fetch('http://localhost:5000/api/orders', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
+          const orderResponse = await api.post('/orders', {
+            items: stripeSession.metadata.items ? JSON.parse(stripeSession.metadata.items) : [],
+            total_amount: stripeSession.amount_total / 100,
+            payment_session_id: sessionId,
+            shipping_address: {
+              street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
+              city: stripeSession.customer_details?.address?.city || "Neo-Tokyo",
+              zip: stripeSession.customer_details?.address?.postal_code || "000000",
+              country: stripeSession.customer_details?.address?.country || "JP"
             },
-            body: JSON.stringify({
-              items: stripeSession.metadata.items ? JSON.parse(stripeSession.metadata.items) : [],
-              total_amount: stripeSession.amount_total / 100,
-              payment_session_id: sessionId,
-              shipping_address: {
-                street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
-                city: stripeSession.customer_details?.address?.city || "Neo-Tokyo",
-                zip: stripeSession.customer_details?.address?.postal_code || "000000",
-                country: stripeSession.customer_details?.address?.country || "JP"
-              },
-              payment_method: 'Stripe'
-            }),
+            payment_method: 'Stripe'
           });
 
-          const orderResult = await orderResponse.json();
+          const orderResult = orderResponse.data;
 
           if (orderResult.success) {
             setStatus("success");
             setOrderData(stripeSession);
-            clearCart(); // Wipe cart only after order is safely in DB
+            clearCart(); 
           } else {
-            console.error("Order creation failed in DB");
             setStatus("error");
           }
         } else {
@@ -74,7 +62,6 @@ export default function SuccessPage() {
 
     verifyAndSaveOrder();
   }, [sessionId, clearCart]);
-
   // --- UI: LOADING ---
   if (status === "verifying") {
     return (

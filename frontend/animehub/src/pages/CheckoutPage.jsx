@@ -37,7 +37,7 @@ export default function CheckoutPage() {
       }
 
       // 2. SEND SHIPPING DETAILS TO BACKEND
-      const response = await fetch('http://localhost:5000/api/payment/checkout', {
+      const response = await fetch('${import.meta.env.VITE_API_BASE_URL}/api/payment/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

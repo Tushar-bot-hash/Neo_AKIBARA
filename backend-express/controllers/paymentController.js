@@ -56,24 +56,27 @@ exports.createCheckoutSession = async (req, res, next) => {
       status: 'pending'
     });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      line_items: orderItems.map(item => ({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: item.product_name, images: item.image_url ? [item.image_url] : [] },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      })),
-      success_url: `${origin_url}/order-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin_url}/cart`,
-      metadata: {
-        order_id: order._id.toString(),
-        user_id: req.user.id.toString()
-      }
-    });
+    // ... inside createCheckoutSession
+const session = await stripe.checkout.sessions.create({
+  payment_method_types: ['card'],
+  mode: 'payment',
+  line_items: orderItems.map(item => ({
+    price_data: {
+      currency: 'usd',
+      product_data: { name: item.product_name, images: item.image_url ? [item.image_url] : [] },
+      unit_amount: Math.round(item.price * 100),
+    },
+    quantity: item.quantity,
+  })),
+  success_url: `${origin_url}/order-success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${origin_url}/cart`,
+  metadata: {
+    order_id: order._id.toString(),
+    user_id: req.user.id.toString(),
+    // ADD THIS LINE: This fixes the EMPTY_ORDER_DATA error
+    items: JSON.stringify(orderItems) 
+  }
+});
 
     order.payment_session_id = session.id;
     await order.save();

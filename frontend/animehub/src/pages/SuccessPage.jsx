@@ -13,37 +13,31 @@ export default function SuccessPage() {
   const processing = useRef(false);
   const sessionId = searchParams.get("session_id");
 
-  useEffect(() => {
-    const verifyAndSaveOrder = async () => {
+ useEffect(() => {
+    const verifyAndFinalize = async () => {
       if (!sessionId || processing.current) return;
       processing.current = true;
 
       try {
-        // 1. Verify payment status from Stripe via your backend
+        // 1. Check if the payment actually went through
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
-        const verifyData = verifyRes.data;
-
-        // Stripe returns 'paid' when successful
-        if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
-          
-          /* NOTE: We don't need to 'POST /orders' here because 
-             the backend already created the order as 'pending' 
-             before the redirect. 
-          */
-
+        
+        if (verifyRes.data?.success && verifyRes.data?.data?.payment_status === "paid") {
+          // 2. Success! No need to call api.post('/orders') 
+          // because PaymentController already created it.
           setStatus("success");
-          clearCart(); // Clean up local state
+          clearCart(); 
         } else {
           setStatus("error");
         }
       } catch (error) {
-        console.error("CRITICAL_UPLINK_FAILURE:", error);
+        console.error("SUCCESS_VERIFICATION_ERROR:", error);
         setStatus("error");
       }
     };
 
-    verifyAndSaveOrder();
-  }, [sessionId, clearCart]); // Removed 'cart' from dependencies
+    verifyAndFinalize();
+  }, [sessionId, clearCart]);
 
   // --- UI RENDERING ---
 

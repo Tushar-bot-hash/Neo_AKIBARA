@@ -15,54 +15,57 @@ export default function SuccessPage() {
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
-      // 1. Guard Clause: Prevent double-execution or execution without ID
+      // 1. Guard against double-execution and missing session
       if (!sessionId || processing.current) return;
       processing.current = true;
 
       try {
-        // 2. Verify Payment Status
+        // 2. Verify payment status from Stripe via your Backend
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
         if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
-          // 3. Robust Item Mapping
-          // If cart is empty (due to refresh), try to recover items from Stripe Metadata
+          // 3. Map items to match your Controller's requirements
           let orderItems = [];
-          
           if (cart && cart.length > 0) {
             orderItems = cart.map(item => ({
-              product: item._id || item.id,
-              product_name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              image_url: item.image_url || item.image // Ensure we capture the image
+              productId: item._id, // Matches 'item.productId || item._id' in controller
+              name: item.name,
+              quantity: Number(item.quantity),
+              price: Number(item.price),
+              image: item.image_url || item.image
             }));
           } else if (stripeSession.metadata?.items) {
-            // Fallback: Parse items we sent to Stripe during checkout
             orderItems = JSON.parse(stripeSession.metadata.items);
           }
 
-          // 4. Final Database Injection
-          const orderResponse = await api.post('/orders', {
+          // Stop if no items found
+          if (orderItems.length === 0) throw new Error("NO_ITEMS_IN_MANIFEST");
+
+          // 4. Construct Payload
+          // Note: user_name and user_email are handled by the backend using req.user
+          const payload = {
             items: orderItems,
-            total_amount: stripeSession.amount_total / 100,
+            total_amount: Number(stripeSession.amount_total / 100),
             payment_session_id: sessionId,
             shipping_address: {
               street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
               city: stripeSession.customer_details?.address?.city || "Neo-Tokyo",
-              zip: stripeSession.customer_details?.address?.postal_code || "000000",
-              country: stripeSession.customer_details?.address?.country || "JP"
+              zip: stripeSession.customer_details?.address?.postal_code || "000000"
             },
             payment_method: 'Stripe'
-          });
+          };
+
+          // 5. POST to your /api/orders endpoint
+          const orderResponse = await api.post('/orders', payload);
 
           if (orderResponse.data?.success) {
             setStatus("success");
-            clearCart(); // Only clear cart AFTER DB confirms save
+            clearCart(); 
           } else {
-            throw new Error("ARCHIVE_REJECTED_BY_SERVER");
+            throw new Error("BACKEND_REJECTION");
           }
         } else {
           setStatus("error");
@@ -70,6 +73,7 @@ export default function SuccessPage() {
       } catch (error) {
         console.error("CRITICAL_UPLINK_FAILURE:", error);
         setStatus("error");
+        // Allow retry if it wasn't a duplicate order issue
         processing.current = false; 
       }
     };
@@ -77,13 +81,15 @@ export default function SuccessPage() {
     verifyAndSaveOrder();
   }, [sessionId, cart, clearCart]);
 
-  // --- RENDERING LOGIC ---
+  // --- UI RENDERING ---
 
   if (status === "verifying") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <Loader2 className="h-12 w-12 text-[#00f0ff] animate-spin mx-auto mb-4" />
-        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase animate-pulse">Initializing_Secure_Log...</h2>
+        <h2 className="text-2xl font-mono text-white italic tracking-widest uppercase animate-pulse">
+          Initializing_Secure_Log...
+        </h2>
       </div>
     );
   }
@@ -93,8 +99,14 @@ export default function SuccessPage() {
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <ShieldAlert className="h-12 w-12 text-[#ff0055] mx-auto mb-4" />
         <h2 className="text-2xl font-black text-white mb-4 uppercase italic">Archive_Sync_Failed</h2>
-        <p className="text-gray-400 mb-8 font-mono text-xs uppercase">Verification Error or Database Rejection</p>
-        <Link to="/cart"><Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RE-INITIALIZE CART</Button></Link>
+        <p className="text-gray-400 mb-8 font-mono text-xs uppercase">
+          Verification Error or Database Rejection
+        </p>
+        <Link to="/cart">
+          <Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">
+            RE-INITIALIZE CART
+          </Button>
+        </Link>
       </div>
     );
   }

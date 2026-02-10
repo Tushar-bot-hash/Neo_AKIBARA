@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Package, ArrowRight, Loader2, ShieldAlert } from "lucide-react"; 
 import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
-import api from "@/services/api";
+import api from "../services/api";
 
 export default function SuccessPage() {
   const { clearCart } = useCart();

@@ -57,24 +57,14 @@ exports.createCheckoutSession = async (req, res, next) => {
     });
 
     // ... inside createCheckoutSession
+// Inside createCheckoutSession in paymentController.js
 const session = await stripe.checkout.sessions.create({
-  payment_method_types: ['card'],
-  mode: 'payment',
-  line_items: orderItems.map(item => ({
-    price_data: {
-      currency: 'usd',
-      product_data: { name: item.product_name, images: item.image_url ? [item.image_url] : [] },
-      unit_amount: Math.round(item.price * 100),
-    },
-    quantity: item.quantity,
-  })),
+  // ... other config
   success_url: `${origin_url}/order-success?session_id={CHECKOUT_SESSION_ID}`,
   cancel_url: `${origin_url}/cart`,
   metadata: {
-    order_id: order._id.toString(),
-    user_id: req.user.id.toString(),
-    // ADD THIS LINE: This fixes the EMPTY_ORDER_DATA error
-    items: JSON.stringify(orderItems) 
+    order_id: order._id.toString(), // CRITICAL: This links the session to your DB order
+    user_id: req.user.id.toString()
   }
 });
 

@@ -15,69 +15,35 @@ export default function SuccessPage() {
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
-      // 1. Double-execution guard
       if (!sessionId || processing.current) return;
       processing.current = true;
 
       try {
-        // 2. Verify payment status from Stripe
+        // 1. Verify payment status from Stripe via your backend
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
+        // Stripe returns 'paid' when successful
         if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
-          const stripeSession = verifyData.data;
+          
+          /* NOTE: We don't need to 'POST /orders' here because 
+             the backend already created the order as 'pending' 
+             before the redirect. 
+          */
 
-          // 3. Map items to match OrderController expectations
-          let orderItems = [];
-          if (cart && cart.length > 0) {
-            orderItems = cart.map(item => ({
-              productId: item._id, // Controller uses item.productId || item._id
-              name: item.name,
-              quantity: Number(item.quantity),
-              price: Number(item.price),
-              image: item.image_url || item.image 
-            }));
-          } else if (stripeSession.metadata?.items) {
-            orderItems = JSON.parse(stripeSession.metadata.items);
-          }
-
-          if (orderItems.length === 0) throw new Error("EMPTY_ORDER_DATA");
-
-          // 4. Construct payload
-          const payload = {
-            items: orderItems,
-            total_amount: Number(stripeSession.amount_total / 100),
-            payment_session_id: sessionId,
-            shipping_address: {
-              street: stripeSession.customer_details?.address?.line1 || "Digital Delivery",
-              city: stripeSession.customer_details?.address?.city || "Neo-Tokyo",
-              zip: stripeSession.customer_details?.address?.postal_code || "000000"
-            },
-            payment_method: 'Stripe'
-          };
-
-          // 5. POST to backend (Interceptor attaches token automatically)
-          const orderResponse = await api.post('/orders', payload);
-
-          if (orderResponse.data?.success) {
-            setStatus("success");
-            clearCart(); 
-          } else {
-            throw new Error("ORDER_SAVE_FAILED");
-          }
+          setStatus("success");
+          clearCart(); // Clean up local state
         } else {
           setStatus("error");
         }
       } catch (error) {
         console.error("CRITICAL_UPLINK_FAILURE:", error);
         setStatus("error");
-        // Reset processing if error allows for a retry attempt
-        processing.current = false; 
       }
     };
 
     verifyAndSaveOrder();
-  }, [sessionId, cart, clearCart]);
+  }, [sessionId, clearCart]); // Removed 'cart' from dependencies
 
   // --- UI RENDERING ---
 

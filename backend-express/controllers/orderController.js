@@ -13,18 +13,27 @@ exports.createOrder = async (req, res, next) => {
       payment_method 
     } = req.body;
 
-    // Create the order in the database
-    // req.user comes from your 'protect' middleware
+    // Safety check: If items is missing or not an array
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please add items to your order'
+      });
+    }
+
     const order = await Order.create({
       user: req.user.id,
       user_name: req.user.name,   
       user_email: req.user.email, 
       items: items.map(item => ({
-        product: item.productId || item.id || item._id, 
-        product_name: item.name || item.product?.name || "Unknown Product",
-        quantity: item.quantity,
-        price: item.price || item.product?.price,
-        image_url: item.image || item.image_url || item.product?.image
+        // Support multiple ID formats
+        product: item.productId || item.id || item._id || item.product, 
+        // Support various naming conventions from frontend
+        product_name: item.name || item.product_name || item.product?.name || "Premium Item",
+        quantity: item.quantity || 1,
+        price: item.price || item.product?.price || 0,
+        // The Fix: Ensure image_url is captured or set to a fallback
+        image_url: item.image || item.image_url || item.product?.image || item.img_url || 'https://via.placeholder.com/150'
       })),
       total_amount,
       shipping_address,
@@ -45,7 +54,6 @@ exports.createOrder = async (req, res, next) => {
     });
   }
 };
-
 // @desc    Get logged in user orders
 // @route   GET /api/orders
 // @access  Private

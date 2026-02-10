@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Package, ArrowRight, Loader2, ShieldAlert } from "lucide-react"; 
 import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
-import api from "../services/api";
+import api from "../services/api"; //
 
 export default function SuccessPage() {
   const { cart, clearCart } = useCart();
@@ -16,20 +16,22 @@ export default function SuccessPage() {
 
   useEffect(() => {
     const verifyAndSaveOrder = async () => {
-      // Guard: Ensure we have a session and aren't already mid-process
+      // 1. Guard Clause: Prevent double-execution in React Strict Mode
       if (!sessionId || processing.current) return;
       
       processing.current = true;
 
       try {
+        // 2. Verify Payment Status via your API service
         const verifyRes = await api.get(`/payment/status/${sessionId}`);
         const verifyData = verifyRes.data;
 
-        // FIXED: Optional chaining (?.) prevents crashes if data is missing
+        // FIXED: Optional chaining (?.) prevents the "undefined" TypeError
         if (verifyData?.success && verifyData?.data?.payment_status === "paid") {
           const stripeSession = verifyData.data;
 
-          // Prepare Item Data from Cart Context (Snapshots image_url and names)
+          // 3. Prepare Item Data with Safety Fallbacks
+          // Prioritize fresh CartContext data to ensure image_url is saved
           const orderItems = (cart && cart.length > 0) 
             ? cart.map(item => ({
                 product: item._id,
@@ -38,15 +40,11 @@ export default function SuccessPage() {
                 price: item.price,
                 image_url: item.image_url 
               }))
-            : [];
-
-          // Guard: If cart is empty and metadata is missing, we might have an issue
-          const finalItems = orderItems.length > 0 
-            ? orderItems 
             : (stripeSession.metadata?.items ? JSON.parse(stripeSession.metadata.items) : []);
 
+          // 4. Create Order Entry in MongoDB
           const orderResponse = await api.post('/orders', {
-            items: finalItems,
+            items: orderItems,
             total_amount: (stripeSession.amount_total || 0) / 100,
             payment_session_id: sessionId,
             shipping_address: {
@@ -63,7 +61,7 @@ export default function SuccessPage() {
             setOrderData(stripeSession);
             clearCart(); 
           } else {
-            setStatus("error");
+            throw new Error("Order creation failed on backend");
           }
         } else {
           setStatus("error");
@@ -71,15 +69,15 @@ export default function SuccessPage() {
       } catch (error) {
         console.error("Critical Uplink Error:", error);
         setStatus("error");
-        // Reset processing on error to allow for potential retry/refresh
-        processing.current = false;
+        // Reset ref so the user can attempt to refresh/retry if it was a network glitch
+        processing.current = false; 
       }
     };
 
     verifyAndSaveOrder();
   }, [sessionId, cart, clearCart]);
 
-  // --- UI: RENDER LOGIC ---
+  // --- UI: LOADING ---
   if (status === "verifying") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
@@ -89,17 +87,19 @@ export default function SuccessPage() {
     );
   }
 
+  // --- UI: ERROR ---
   if (status === "error") {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
         <ShieldAlert className="h-12 w-12 text-[#ff0055] mx-auto mb-4" />
         <h2 className="text-2xl font-black text-white mb-4 uppercase italic">Archive_Sync_Failed</h2>
-        <p className="text-gray-400 mb-8 font-mono text-xs">COULD NOT VERIFY TRANSACTION DATA. DATABASE REJECTED ENTRY.</p>
+        <p className="text-gray-400 mb-8 font-mono text-xs uppercase">Verification Error or Database Rejection</p>
         <Link to="/cart"><Button variant="outline" className="border-gray-800 text-[#00f0ff] hover:bg-[#00f0ff]/10">RETURN TO CART</Button></Link>
       </div>
     );
   }
 
+  // --- UI: SUCCESS ---
   return (
     <div className="max-w-7xl mx-auto px-4 py-32 text-center">
       <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 mb-8 border border-green-500/20">
@@ -118,7 +118,7 @@ export default function SuccessPage() {
         <Package className="mx-auto h-8 w-8 text-[#ff0055] mb-4" />
         <h3 className="text-white font-bold text-xl mb-2 uppercase tracking-tight">Manifest_Archived</h3>
         <p className="text-xs text-gray-400 leading-relaxed font-mono">
-          YOUR PURCHASE DATA HAS BEEN SUCCESSFULLY INJECTED INTO THE TRANSACTION ARCHIVES. SHIPMENT PREPARATION IS UNDERWAY.
+          YOUR PURCHASE DATA HAS BEEN SUCCESSFULLY INJECTED INTO THE TRANSACTION ARCHIVES.
         </p>
       </div>
 

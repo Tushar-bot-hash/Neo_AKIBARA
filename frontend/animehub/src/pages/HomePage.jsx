@@ -7,6 +7,7 @@ import { ShoppingCart, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 
+
 import api from "../services/api";
 
 export default function HomePage() {

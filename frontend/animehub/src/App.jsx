@@ -127,20 +127,22 @@ function Navigation() {
         </div>
         
         <div className="flex items-center space-x-4">
-          <Link to="/cart">
-            <Button variant="ghost" size="icon" className="text-gray-300 hover:text-[#00f0ff] hover:bg-gray-900 relative">
-              <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#ff0055] text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse text-white font-bold">
-                  {totalItems}
-                </span>
-              )}
-            </Button>
-          </Link>
+          {/* --- CHANGE: CART ICON ONLY VISIBLE IF USER IS LOGGED IN --- */}
+          {user && (
+            <Link to="/cart">
+              <Button variant="ghost" size="icon" className="text-gray-300 hover:text-[#00f0ff] hover:bg-gray-900 relative">
+                <ShoppingCart className="h-5 w-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#ff0055] text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse text-white font-bold">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          )}
 
           {user ? (
             <div className="flex items-center gap-2">
-              {/* Added Orders Link here */}
               <Link to="/orders">
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-[#00f0ff] font-mono text-[10px] tracking-widest uppercase hidden lg:flex">
                   <History className="h-4 w-4 mr-2" />
@@ -195,8 +197,14 @@ function App() {
       
       <main className="relative z-10">
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/cart" element={<CartPage />} />
+          // inside your Routes block in the App function:
+       <Route path="/" element={<HomePage />} />
+
+  <Route path="/cart" element={
+   <ProtectedRoute>
+    <CartPage />
+   </ProtectedRoute>
+                               } />
           
           <Route path="/checkout" element={
             <ProtectedRoute>

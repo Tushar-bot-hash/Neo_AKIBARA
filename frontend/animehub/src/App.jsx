@@ -29,38 +29,33 @@ function Navigation() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
 
- const animeCategories = [
-  {
-    title: "Figures & Collectibles",
-    icon: <Gamepad2 className="h-4 w-4" />,
-    items: [
-      { name: "Evangelion Series", href: "/products/evangelion-series" },
-      { name: "Gundam Models", href: "/products/gundam-models" },
-      { name: "Nendoroids", href: "/products/nendoroids" },
-      { name: "Scale Figures", href: "/products/scale-figures" },
-    ]
-  },
-  {
-    title: "Apparel",
-    icon: <Shirt className="h-4 w-4" />,
-    items: [
-      { name: "Cyber-Goth Hoodies", href: "/products/cyber-goth-hoodies" },
-      { name: "Anime T-Shirts", href: "/products/anime-t-shirts" },
-      { name: "Jackets & Outerwear", href: "/products/jackets-outerwear" },
-      { name: "Accessories", href: "/products/accessories" },
-    ]
-  },
-  {
-    title: "Art & Media",
-    icon: <Images className="h-4 w-4" />,
-    items: [
-      { name: "Posters & Prints", href: "/products/posters-prints" },
-      { name: "Art Books", href: "/products/art-books" },
-      { name: "Blu-ray Collections", href: "/products/blu-ray-collections" },
-      { name: "Soundtracks", href: "/products/soundtracks" },
-    ]
-  }
-];
+  /
+  const animeCategories = [
+    {
+      title: "Clothing",
+      icon: <Shirt className="h-4 w-4" />,
+      href: "/products/clothing",
+      desc: "Cyber-Goth hoodies and limited tees."
+    },
+    {
+      title: "Manga & Books",
+      icon: <Package className="h-4 w-4" />,
+      href: "/products/manga",
+      desc: "Original tankobon and art books."
+    },
+    {
+      title: "Accessories",
+      icon: <Sparkles className="h-4 w-4" />,
+      href: "/products/accessories",
+      desc: "Techwear jewelry and tactical bags."
+    },
+    {
+      title: "Posters",
+      icon: <Images className="h-4 w-4" />,
+      href: "/products/posters",
+      desc: "Neon-lit prints and wall scrolls."
+    }
+  ];
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-800 bg-black/95 backdrop-blur supports-[backdrop-filter]:bg-black/60 py-4 px-8">
@@ -87,29 +82,29 @@ function Navigation() {
                   Shop
                 </NavigationMenuTrigger>
                 <NavigationMenuContent className="border border-gray-800 bg-black p-4 shadow-2xl">
-                  <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-3 lg:w-[600px]">
-                    {animeCategories.map((category) => (
-                      <div key={category.title} className="space-y-3">
-                        <div className="flex items-center gap-2 font-bold text-[#00f0ff] text-xs uppercase tracking-widest border-b border-gray-800 pb-2">
-                          {category.icon}
-                          {category.title}
-                        </div>
-                        <ul className="space-y-1">
-                          {category.items.map((item) => (
-                            <li key={item.name}>
-                              <NavigationMenuLink asChild>
-                                <Link
-                                  to={item.href}
-                                  className="block rounded-md px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-900 transition-all duration-200"
-                                >
-                                  {item.name}
-                                </Link>
-                              </NavigationMenuLink>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                  {/* Changed to a cleaner 1-column list for 4 items */}
+                  <div className="w-[280px] p-2">
+                    <div className="text-[#00f0ff] text-[10px] uppercase tracking-widest border-b border-gray-800 pb-2 mb-3 font-bold opacity-70">
+                      Sector_Categories
+                    </div>
+                    <ul className="space-y-1">
+                      {animeCategories.map((item) => (
+                        <li key={item.title}>
+                          <NavigationMenuLink asChild>
+                            <Link
+                              to={item.href}
+                              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-gray-800"
+                            >
+                              <span className="text-[#ff0055]">{item.icon}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold tracking-tight leading-none mb-1">{item.title}</span>
+                                <span className="text-[10px] text-gray-600 italic line-clamp-1">{item.desc}</span>
+                              </div>
+                            </Link>
+                          </NavigationMenuLink>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </NavigationMenuContent>
               </NavigationMenuItem>
@@ -126,8 +121,8 @@ function Navigation() {
           </NavigationMenu>
         </div>
         
+        {/* ... Rest of your user/auth buttons (Cart, Profile, Login) stay the same ... */}
         <div className="flex items-center space-x-4">
-          {/* --- CHANGE: CART ICON ONLY VISIBLE IF USER IS LOGGED IN --- */}
           {user && (
             <Link to="/cart">
               <Button variant="ghost" size="icon" className="text-gray-300 hover:text-[#00f0ff] hover:bg-gray-900 relative">

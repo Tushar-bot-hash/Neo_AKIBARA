@@ -54,29 +54,41 @@ const AdminPage = () => {
         price: parseFloat(productForm.price) || 0,
         stock: parseInt(productForm.stock) || 0,
         discount: parseInt(productForm.discount) || 0,
-        // Send as string: backend controller handles the .split(',')
-        tags: productForm.tags 
+        tags: typeof productForm.tags === 'string' 
+          ? productForm.tags.split(',').map(t => t.trim()).filter(t => t !== "")
+          : productForm.tags
       };
 
       if (editingId) {
         await api.put(`/products/${editingId}`, payload);
-        toast({ title: "Artifact Updated" });
+        toast({ title: "ARTIFACT_MODIFIED" });
       } else {
         await api.post('/products', payload);
-        toast({ title: "Artifact Uploaded" });
+        toast({ title: "ARTIFACT_REGISTERED" });
       }
       setShowModal(false);
       resetForm();
       fetchData();
     } catch (err) {
-      console.error("Uplink Error:", err.response?.data);
       toast({ 
-        title: "Transmission Failed", 
-        description: err.response?.data?.message || err.response?.data?.error || "Verify data format.", 
+        title: "TRANSMISSION_FAILED", 
+        description: err.response?.data?.message || "Verify data format.", 
         variant: "destructive" 
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("ARE YOU SURE? This action will purge the artifact from the database.")) return;
+    
+    try {
+      await api.delete(`/products/${id}`);
+      toast({ title: "ARTIFACT_PURGED", description: "Entry removed from sprawl." });
+      fetchData();
+    } catch (err) {
+      toast({ title: "PURGE_FAILED", variant: "destructive" });
     }
   };
 
@@ -112,12 +124,15 @@ const AdminPage = () => {
                   <TableCell className="text-xs text-gray-400 uppercase">{p.category}</TableCell>
                   <TableCell className="text-[#00f0ff]">{p.stock}</TableCell>
                   <TableCell className="text-right font-bold text-[#00f0ff]">${p.price}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" onClick={() => { 
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => { 
                         setEditingId(p._id); 
                         setProductForm({...p, tags: Array.isArray(p.tags) ? p.tags.join(', ') : p.tags}); 
                         setShowModal(true); 
-                    }}><Edit className="h-4 w-4" /></Button>
+                    }} className="hover:text-[#00f0ff]"><Edit className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(p._id)} className="hover:text-[#ff0055]">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -130,8 +145,8 @@ const AdminPage = () => {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <Card className="w-full max-w-2xl bg-[#0a0a0c] border-[#00f0ff] border-t-4 my-auto">
             <CardHeader className="flex flex-row justify-between items-center">
-              <CardTitle className="text-white uppercase italic">{editingId ? 'Modify_Artifact' : 'Register_Artifact'}</CardTitle>
-              <X className="h-6 w-6 text-gray-500 cursor-pointer" onClick={() => setShowModal(false)} />
+              <CardTitle className="text-white uppercase italic tracking-widest">{editingId ? 'Modify_Artifact' : 'Register_Artifact'}</CardTitle>
+              <X className="h-6 w-6 text-gray-500 cursor-pointer hover:text-white" onClick={() => setShowModal(false)} />
             </CardHeader>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -140,33 +155,24 @@ const AdminPage = () => {
                   <Input required className="bg-black border-gray-800 text-white" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white text-xs">TARGET FREQUENCY (CATEGORY)</Label>
+                  <Label className="text-white text-xs">TARGET SECTOR (CATEGORY)</Label>
                   <Select value={productForm.category} onValueChange={v => setProductForm({...productForm, category: v})}>
                     <SelectTrigger className="bg-black border-gray-800 text-white"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                    <SelectContent className="bg-[#0a0a0c] border-gray-800 text-white max-h-[300px]">
-                      <SelectGroup>
-                        <SelectLabel className="text-[#00f0ff] text-[10px]">COLLECTIBLES</SelectLabel>
-                        <SelectItem value="figures">Figures & Models</SelectItem>
-                        <SelectItem value="collectibles">Special Collectibles</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel className="text-[#ff0055] text-[10px]">APPAREL</SelectLabel>
-                        <SelectItem value="clothing">T-Shirts & Apparel</SelectItem>
+                    <SelectContent className="bg-[#0a0a0c] border-gray-800 text-white">
+                        <SelectItem value="clothing">Clothing</SelectItem>
+                        <SelectItem value="manga">Manga & Books</SelectItem>
                         <SelectItem value="accessories">Accessories</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel className="text-[#00f0ff] text-[10px]">ART & MEDIA</SelectLabel>
-                        <SelectItem value="posters">Posters & Prints</SelectItem>
-                        <SelectItem value="media">Art Media & Books</SelectItem>
-                      </SelectGroup>
+                        <SelectItem value="posters">Posters</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+              
               <div className="space-y-2">
                 <Label className="text-white text-xs">DESCRIPTION</Label>
                 <Textarea required className="bg-black border-gray-800 text-white" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} />
               </div>
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
                     <Label className="text-white text-[10px]">PRICE</Label>
@@ -181,14 +187,17 @@ const AdminPage = () => {
                     <Input type="number" className="bg-black border-gray-800 text-white" value={productForm.discount} onChange={e => setProductForm({...productForm, discount: e.target.value})} />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label className="text-white text-xs">IMAGE URL</Label>
                 <Input placeholder="https://..." className="bg-black border-gray-800 text-white" value={productForm.image_url} onChange={e => setProductForm({...productForm, image_url: e.target.value})} />
               </div>
+
               <div className="space-y-2">
                 <Label className="text-white text-xs">TAGS (COMMA SEPARATED)</Label>
                 <Input placeholder="neon, oversized, limited" className="bg-black border-gray-800 text-white" value={productForm.tags} onChange={e => setProductForm({...productForm, tags: e.target.value})} />
               </div>
+
               <Button type="submit" disabled={loading} className="w-full bg-[#00f0ff] text-black font-bold hover:bg-[#ff0055] hover:text-white transition-all">
                 {loading ? <RefreshCw className="animate-spin" /> : 'EXECUTE UPLINK'}
               </Button>

@@ -137,34 +137,36 @@ const AdminPage = () => {
                   <Label className="text-white text-xs">TARGET FREQUENCY (CATEGORY)</Label>
                   <Select value={productForm.category} onValueChange={v => setProductForm({...productForm, category: v})}>
                     <SelectTrigger className="bg-black border-gray-800 text-white"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                    <SelectContent className="bg-[#0a0a0c] border-gray-800 text-white">
-                      <SelectGroup>
-                        <SelectLabel className="text-[#00f0ff]">FIGURES & COLLECTIBLES</SelectLabel>
-                        <SelectItem value="evangelion-series">Evangelion Series</SelectItem>
-                        <SelectItem value="gundam-models">Gundam Models</SelectItem>
-                        <SelectItem value="nendoroids">Nendoroids</SelectItem>
-                        <SelectItem value="scale-figures">Scale Figures</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel className="text-[#ff0055]">APPAREL</SelectLabel>
-                        <SelectItem value="cyber-goth-hoodies">Cyber-Goth Hoodies</SelectItem>
-                        <SelectItem value="anime-t-shirts">Anime T-Shirts</SelectItem>
-                        <SelectItem value="jackets-outerwear">Jackets & Outerwear</SelectItem>
-                        <SelectItem value="accessories">Accessories</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel className="text-[#00f0ff]">ART & MEDIA</SelectLabel>
-                        <SelectItem value="posters-prints">Posters & Prints</SelectItem>
-                        <SelectItem value="art-books">Art Books</SelectItem>
-                        <SelectItem value="blu-ray-collections">Blu-ray Collections</SelectItem>
-                        <SelectItem value="soundtracks">Soundtracks</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
+                    <SelectContent className="bg-[#0a0a0c] border-gray-800 text-white max-h-[300px]">
+            <SelectGroup>
+                <SelectLabel className="text-[#00f0ff] text-[10px]">FIGURES & COLLECTIBLES</SelectLabel>
+                <SelectItem value="figures">Evangelion Series (Figures)</SelectItem>
+                <SelectItem value="figures">Gundam Models (Figures)</SelectItem>
+                <SelectItem value="figures">Nendoroids (Figures)</SelectItem>
+                <SelectItem value="collectibles">Scale Figures (Collectibles)</SelectItem>
+           </SelectGroup>
+  
+          <SelectGroup>
+              <SelectLabel className="text-[#ff0055] text-[10px]">APPAREL</SelectItem>
+              <SelectItem value="clothing">Cyber-Goth Hoodies (Clothing)</SelectItem>
+              <SelectItem value="clothing">Anime T-Shirts (Clothing)</SelectItem>
+              <SelectItem value="clothing">Jackets & Outerwear (Clothing)</SelectItem>
+              <SelectItem value="accessories">Accessories</SelectItem>
+           </SelectGroup>
+  
+  <SelectGroup>
+    <SelectLabel className="text-[#00f0ff] text-[10px]">ART & MEDIA</SelectLabel>
+    <SelectItem value="posters">Posters & Prints</SelectItem>
+    <SelectItem value="media">Art Books (Media)</SelectItem>
+    <SelectItem value="media">Blu-ray Collections (Media)</SelectItem>
+    <SelectItem value="media">Soundtracks (Media)</SelectItem>
+  </SelectGroup>
+</SelectContent>
                   </Select>
                 </div>
               </div>
               
-              {/* Rest of the form inputs... (Description, Price, Stock, Image URL) */}
+             
               <div className="space-y-2">
                 <Label className="text-white text-xs">DESCRIPTION</Label>
                 <Textarea required className="bg-black border-gray-800" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} />

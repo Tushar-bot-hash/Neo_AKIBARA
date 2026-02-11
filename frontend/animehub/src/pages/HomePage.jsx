@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; 
+import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext"; // Added useAuth
 import { useToast } from "@/hooks/use-toast";
-
 
 import api from "../services/api";
 
 export default function HomePage() {
   const { category, type } = useParams(); 
+  const navigate = useNavigate(); // For redirecting to login
   const { addToCart } = useCart();
+  const { user } = useAuth(); // Destructure user from AuthContext
   const { toast } = useToast();
   
   const [products, setProducts] = useState([]);
@@ -22,7 +24,6 @@ export default function HomePage() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        // 2. Build your query parameters object
         const params = {};
         if (category) {
           params.category = category;
@@ -32,15 +33,12 @@ export default function HomePage() {
           params.featured = 'true';
         }
         
-        // 3. Use the 'api' instance. 
-        // It already knows the Base URL (Render) and handles JSON automatically.
         const res = await api.get('/products', { params });
         
         if (res.data.success) {
           setProducts(res.data.data);
         }
       } catch (err) {
-        // Log errors clearly for debugging production connection issues
         console.error("❌ Neural Link Failure:", err.response?.data || err.message);
       } finally {
         setLoading(false);
@@ -51,6 +49,20 @@ export default function HomePage() {
   }, [category, type]);
 
   const handleAddToCart = (product) => {
+    // 1. Check if user is logged in
+    if (!user) {
+      toast({
+        title: "Access Denied 🔐",
+        description: "Please login as a user or create an account to acquire artifacts.",
+        variant: "destructive",
+        className: "border-2 border-[#ff0055] bg-black text-white",
+      });
+      // Optionally redirect to login after a short delay
+      // setTimeout(() => navigate('/login'), 2000);
+      return;
+    }
+
+    // 2. Proceed if user is logged in
     const cartProduct = {
       id: product._id,
       title: product.name,
@@ -78,6 +90,7 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* ... Title Section remains the same ... */}
       <div className="mb-12 border-b border-gray-800 pb-8">
         <div className="flex items-center gap-3 mb-2">
           {type ? <Sparkles className="h-5 w-5 text-[#ff0055]" /> : <Zap className="h-5 w-5 text-[#00f0ff]" />}

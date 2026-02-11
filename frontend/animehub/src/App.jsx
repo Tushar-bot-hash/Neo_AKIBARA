@@ -29,38 +29,38 @@ function Navigation() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
 
-  const animeCategories = [
-    {
-      title: "Figures & Collectibles",
-      icon: <Gamepad2 className="h-4 w-4" />,
-      items: [
-        { name: "Evangelion Series", href: "/products/evangelion" },
-        { name: "Gundam Models", href: "/products/gundam" },
-        { name: "Nendoroids", href: "/products/nendoroids" },
-        { name: "Scale Figures", href: "/products/scale-figures" },
-      ]
-    },
-    {
-      title: "Apparel",
-      icon: <Shirt className="h-4 w-4" />,
-      items: [
-        { name: "Cyber-Goth Hoodies", href: "/products/hoodies" },
-        { name: "Anime T-Shirts", href: "/products/tshirts" },
-        { name: "Jackets & Outerwear", href: "/products/jackets" },
-        { name: "Accessories", href: "/products/accessories" },
-      ]
-    },
-    {
-      title: "Art & Media",
-      icon: <Images className="h-4 w-4" />,
-      items: [
-        { name: "Posters & Prints", href: "/products/posters" },
-        { name: "Art Books", href: "/products/artbooks" },
-        { name: "Blu-ray Collections", href: "/products/bluray" },
-        { name: "Soundtracks", href: "/products/soundtracks" },
-      ]
-    }
-  ];
+ const animeCategories = [
+  {
+    title: "Figures & Collectibles",
+    icon: <Gamepad2 className="h-4 w-4" />,
+    items: [
+      { name: "Evangelion Series", href: "/products/evangelion-series" },
+      { name: "Gundam Models", href: "/products/gundam-models" },
+      { name: "Nendoroids", href: "/products/nendoroids" },
+      { name: "Scale Figures", href: "/products/scale-figures" },
+    ]
+  },
+  {
+    title: "Apparel",
+    icon: <Shirt className="h-4 w-4" />,
+    items: [
+      { name: "Cyber-Goth Hoodies", href: "/products/cyber-goth-hoodies" },
+      { name: "Anime T-Shirts", href: "/products/anime-t-shirts" },
+      { name: "Jackets & Outerwear", href: "/products/jackets-outerwear" },
+      { name: "Accessories", href: "/products/accessories" },
+    ]
+  },
+  {
+    title: "Art & Media",
+    icon: <Images className="h-4 w-4" />,
+    items: [
+      { name: "Posters & Prints", href: "/products/posters-prints" },
+      { name: "Art Books", href: "/products/art-books" },
+      { name: "Blu-ray Collections", href: "/products/blu-ray-collections" },
+      { name: "Soundtracks", href: "/products/soundtracks" },
+    ]
+  }
+];
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-800 bg-black/95 backdrop-blur supports-[backdrop-filter]:bg-black/60 py-4 px-8">

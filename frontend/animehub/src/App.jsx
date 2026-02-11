@@ -1,5 +1,5 @@
 ﻿import { Routes, Route, Link } from "react-router-dom";
-import { Home, Package, Info, ShoppingCart, User, Search, LogOut, Gamepad2, Shirt, Images, Sparkles, History } from "lucide-react";
+import { Home, Package, Info, ShoppingCart, User, LogOut, Shirt, Images, Sparkles, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -13,7 +13,7 @@ import ProtectedRoute from "@/pages/ProtectedRoute";
 import AboutPage from "@/pages/AboutPage";
 import SuccessPage from "@/pages/SuccessPage";
 import CheckoutPage from "@/pages/CheckoutPage";
-import OrderHistory from '@/pages/OrderHistory'; // Ensure path is correct
+import OrderHistory from '@/pages/OrderHistory';
 import { Toaster } from "@/components/ui/toaster";
 import {
   NavigationMenu,
@@ -29,7 +29,7 @@ function Navigation() {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
 
-  /
+  // UPDATED: These match your backend Product model categories exactly
   const animeCategories = [
     {
       title: "Clothing",
@@ -82,7 +82,6 @@ function Navigation() {
                   Shop
                 </NavigationMenuTrigger>
                 <NavigationMenuContent className="border border-gray-800 bg-black p-4 shadow-2xl">
-                  {/* Changed to a cleaner 1-column list for 4 items */}
                   <div className="w-[280px] p-2">
                     <div className="text-[#00f0ff] text-[10px] uppercase tracking-widest border-b border-gray-800 pb-2 mb-3 font-bold opacity-70">
                       Sector_Categories
@@ -121,7 +120,6 @@ function Navigation() {
           </NavigationMenu>
         </div>
         
-        {/* ... Rest of your user/auth buttons (Cart, Profile, Login) stay the same ... */}
         <div className="flex items-center space-x-4">
           {user && (
             <Link to="/cart">
@@ -192,45 +190,16 @@ function App() {
       
       <main className="relative z-10">
         <Routes>
-          // inside your Routes block in the App function:
-       <Route path="/" element={<HomePage />} />
-
-  <Route path="/cart" element={
-   <ProtectedRoute>
-    <CartPage />
-   </ProtectedRoute>
-                               } />
-          
-          <Route path="/checkout" element={
-            <ProtectedRoute>
-              <CheckoutPage />
-            </ProtectedRoute>
-          } />
-
+          <Route path="/" element={<HomePage />} />
+          <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/order-success" element={<SuccessPage />} />
-          
-          {/* NEW ORDER HISTORY ROUTE */}
-          <Route path="/orders" element={
-            <ProtectedRoute>
-              <OrderHistory />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin" element={
-            <ProtectedRoute requireAdmin={true}>
-              <AdminPage />
-            </ProtectedRoute>
-          } />
-          
+          <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminPage /></ProtectedRoute>} />
           <Route path="/products/:category?" element={<HomePage />} />
           <Route path="/collections/:type?" element={<HomePage />} />
           <Route path="*" element={<HomePage />} />

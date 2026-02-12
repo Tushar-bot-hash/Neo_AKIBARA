@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Box } from "lucide-react"; // Added Box
 import { useCart } from "@/contexts/CartContext";
 import { Link } from "react-router-dom";
 
@@ -10,14 +10,14 @@ export default function CartPage() {
 
   if (!cartItems || cartItems.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto text-center py-32">
+      <div className="max-w-7xl mx-auto text-center py-32 font-mono">
         <ShoppingCart className="h-24 w-24 mx-auto text-gray-800 mb-6 animate-pulse" />
         <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white">Your cart is empty</h2>
-        <p className="text-gray-500 mb-8 font-mono">NO SIGNAL DETECTED. PLEASE ACQUIRE GEAR.</p>
+        <p className="text-gray-500 mb-8 mt-2 uppercase tracking-widest text-xs">NO_SIGNAL_DETECTED. PLEASE_ACQUIRE_GEAR.</p>
         <Link to="/">
-          <Button className="bg-[#00f0ff] text-black hover:shadow-[0_0_15px_rgba(0,240,255,0.5)] font-bold">
+          <Button className="bg-[#00f0ff] text-black hover:bg-[#00f0ff]/80 font-black tracking-widest px-8">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            RETURN TO SHOP
+            RETURN_TO_SHOP
           </Button>
         </Link>
       </div>
@@ -25,12 +25,13 @@ export default function CartPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-12 font-mono">
       <h1 className="text-5xl font-black italic tracking-tighter mb-12 uppercase text-white">
         Current <span className="text-[#ff0055]">Cargo</span>
       </h1>
       
       <div className="grid md:grid-cols-3 gap-8">
+        {/* Left Column: Cart Items List */}
         <div className="md:col-span-2 space-y-4">
           {cartItems.map((item) => {
             const product = item.product || {}; 
@@ -39,17 +40,17 @@ export default function CartPage() {
             return (
               <Card key={itemId} className="bg-gray-900/40 border-gray-800 hover:border-[#00f0ff]/30 transition-all duration-300">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                      <div className="h-24 w-24 bg-black border border-gray-800 rounded overflow-hidden shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-6 w-full sm:w-auto">
+                      <div className="h-24 w-24 bg-black border border-gray-800 rounded overflow-hidden shrink-0 shadow-[0_0_15px_rgba(0,0,0,0.8)]">
                         <img 
                           src={product.image_url || "/api/placeholder/100/100"} 
                           alt={product.name} 
-                          className="w-full h-full object-cover opacity-90"
+                          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                         />
                       </div>
-                      <div>
-                        <h3 className="font-bold text-xl text-white uppercase tracking-tight">
+                      <div className="flex-grow">
+                        <h3 className="font-bold text-xl text-white uppercase tracking-tight italic">
                           {product.name || "Unknown Artifact"}
                         </h3>
                         
@@ -58,9 +59,9 @@ export default function CartPage() {
                             Verified_Original
                           </Badge>
                           
-                          {/* NEW: Conditional Size Badge for Clothing */}
+                          {/* Size Badge: Now checking for validity */}
                           {item.size && item.size !== 'N/A' && (
-                            <Badge className="bg-[#00f0ff] text-black text-[10px] font-black px-2 py-0.5">
+                            <Badge className="bg-[#00f0ff] text-black text-[10px] font-black px-2 py-0.5 shadow-[0_0_10px_rgba(0,240,255,0.4)]">
                               DIMENSION: {item.size}
                             </Badge>
                           )}
@@ -72,8 +73,8 @@ export default function CartPage() {
                       </div>
                     </div>
                     
-                    <div className="flex flex-col items-end gap-4">
-                      <div className="flex items-center gap-3 bg-black p-1 rounded border border-gray-800">
+                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
+                      <div className="flex items-center gap-3 bg-black/60 p-1 rounded border border-gray-800">
                         <Button 
                           size="icon" 
                           variant="ghost" 
@@ -95,7 +96,7 @@ export default function CartPage() {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-gray-600 hover:text-[#ff0055] hover:bg-[#ff0055]/5 text-[10px] font-bold uppercase tracking-widest"
+                        className="text-gray-600 hover:text-[#ff0055] hover:bg-[#ff0055]/5 text-[10px] font-bold uppercase tracking-widest transition-colors"
                         onClick={() => removeFromCart(itemId)}
                       >
                         <Trash2 className="h-3 w-3 mr-2" />
@@ -109,24 +110,25 @@ export default function CartPage() {
           })}
         </div>
         
+        {/* Right Column: Order Summary Sidebar */}
         <div className="relative">
           <Card className="bg-[#0a0a0c] border-2 border-[#ff0055] sticky top-24 shadow-[0_0_30px_rgba(255,0,85,0.15)] overflow-hidden">
             <div className="absolute top-0 right-0 p-2 opacity-10">
                 <Box className="h-20 w-20 text-white" />
             </div>
             <CardHeader className="border-b border-gray-900 bg-white/5">
-              <CardTitle className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-400">Transaction Summary</CardTitle>
+              <CardTitle className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-400">Transaction_Summary</CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                 {cartItems.map((item) => (
                   <div key={item._id} className="flex justify-between text-[11px] font-mono border-l-2 border-gray-800 pl-3 py-1">
                     <div className="flex flex-col">
-                        <span className="text-gray-300 uppercase font-bold">
+                        <span className="text-gray-300 uppercase font-bold truncate max-w-[140px]">
                             {item.product?.name}
                         </span>
                         <span className="text-gray-500 text-[10px]">
-                            Qty: {item.quantity} {item.size ? `| Size: ${item.size}` : ''}
+                            Qty: {item.quantity} {item.size && item.size !== 'N/A' ? `| Size: ${item.size}` : ''}
                         </span>
                     </div>
                     <span className="text-[#00f0ff] font-bold">

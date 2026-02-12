@@ -1,24 +1,27 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/badge";
 import { ShoppingCart, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext"; // Added useAuth
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 import api from "../services/api";
 
 export default function HomePage() {
   const { category, type } = useParams(); 
-  const navigate = useNavigate(); // For redirecting to login
+  const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth(); // Destructure user from AuthContext
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // NEW: State to track selected size for each product by ID
+  const [selectedSizes, setSelectedSizes] = useState({});
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -48,32 +51,49 @@ export default function HomePage() {
     fetchProducts();
   }, [category, type]);
 
+  // NEW: Handler for clicking a size button
+  const handleSizeSelect = (productId, size) => {
+    setSelectedSizes(prev => ({
+      ...prev,
+      [productId]: size
+    }));
+  };
+
   const handleAddToCart = (product) => {
-    // 1. Check if user is logged in
     if (!user) {
       toast({
         title: "Access Denied 🔐",
-        description: "Please login as a user or create an account to acquire artifacts.",
+        description: "Please login to acquire artifacts.",
         variant: "destructive",
         className: "border-2 border-[#ff0055] bg-black text-white",
       });
-      // Optionally redirect to login after a short delay
-      // setTimeout(() => navigate('/login'), 2000);
       return;
     }
 
-    // 2. Proceed if user is logged in
+    // NEW: Logic to enforce size selection for clothing
+    if (product.category === 'clothing' && !selectedSizes[product._id]) {
+      toast({
+        title: "Selection Required 📏",
+        description: "Please select a dimension (size) for this garment.",
+        variant: "destructive",
+        className: "border-2 border-[#ff0055] bg-black text-white",
+      });
+      return;
+    }
+
     const cartProduct = {
       id: product._id,
       title: product.name,
       price: product.price,
-      image: product.image_url
+      image: product.image_url,
+      // NEW: Include selected size in cart object
+      size: selectedSizes[product._id] || 'N/A'
     };
     
     addToCart(cartProduct);
     toast({
       title: "Added to cart! ⚡",
-      description: `${product.name} has been added to your cart.`,
+      description: `${product.name} ${selectedSizes[product._id] ? `(${selectedSizes[product._id]})` : ''} added.`,
       className: "border-2 border-[#00f0ff] bg-black text-white",
     });
   };
@@ -90,7 +110,6 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* ... Title Section remains the same ... */}
       <div className="mb-12 border-b border-gray-800 pb-8">
         <div className="flex items-center gap-3 mb-2">
           {type ? <Sparkles className="h-5 w-5 text-[#ff0055]" /> : <Zap className="h-5 w-5 text-[#00f0ff]" />}
@@ -129,8 +148,32 @@ export default function HomePage() {
                     onError={(e) => { e.target.src = "https://placehold.co/600x400/111/333?text=NO_SIGNAL"; }}
                   />
                 </div>
+
+                {/* NEW: Size Selection UI specifically for Clothing */}
+                {product.category === 'clothing' && (
+                  <div className="mb-6 animate-in fade-in slide-in-from-bottom-2">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-2 block">
+                      Select Dimension
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {['S', 'M', 'L', 'XL'].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => handleSizeSelect(product._id, size)}
+                          className={`px-3 py-1 text-xs font-mono border transition-all duration-200 ${
+                            selectedSizes[product._id] === size
+                              ? "bg-[#00f0ff] border-[#00f0ff] text-black font-bold shadow-[0_0_10px_#00f0ff]"
+                              : "border-gray-800 text-gray-500 hover:border-[#00f0ff] hover:text-[#00f0ff]"
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mt-auto">
                   <div>
                     <span className="text-[10px] text-gray-600 block uppercase tracking-widest">Price</span>
                     <span className="text-2xl font-black text-white">${product.price.toFixed(2)}</span>
@@ -153,7 +196,7 @@ export default function HomePage() {
              <Button 
                 variant="link" 
                 className="mt-4 text-[#ff0055]" 
-                onClick={() => window.location.href = '/'}
+                onClick={() => navigate('/')}
               >
                 Return Home
               </Button>

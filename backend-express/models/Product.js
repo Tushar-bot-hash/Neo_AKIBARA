@@ -1,4 +1,3 @@
-// models/Product.js
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
@@ -20,6 +19,12 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add a category'],
     enum: ['figures', 'clothing', 'posters', 'accessories', 'manga', 'collectibles', 'media']
+  },
+  // NEW: Sizes array specifically for clothing
+  sizes: {
+    type: [String],
+    default: [],
+    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'OS'] 
   },
   image_url: {
     type: String,

@@ -29,7 +29,8 @@ const AdminPage = () => {
     stock: '',
     featured: false,
     discount: 0,
-    tags: ''
+    tags: '',
+    sizes: [] // Added for clothing logic
   });
 
   const fetchData = async () => {
@@ -44,6 +45,16 @@ const AdminPage = () => {
   useEffect(() => {
     if (user?.role === 'admin') fetchData();
   }, [user]);
+
+  // Handler for toggling sizes
+  const toggleSize = (size) => {
+    setProductForm(prev => ({
+      ...prev,
+      sizes: prev.sizes.includes(size)
+        ? prev.sizes.filter(s => s !== size)
+        : [...prev.sizes, size]
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -93,7 +104,10 @@ const AdminPage = () => {
   };
 
   const resetForm = () => {
-    setProductForm({ name: '', description: '', price: '', category: 'clothing', image_url: '', stock: '', featured: false, discount: 0, tags: '' });
+    setProductForm({ 
+        name: '', description: '', price: '', category: 'clothing', 
+        image_url: '', stock: '', featured: false, discount: 0, tags: '', sizes: [] 
+    });
     setEditingId(null);
   };
 
@@ -104,7 +118,7 @@ const AdminPage = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-between items-end border-b border-gray-800 pb-6">
           <h1 className="text-4xl font-bold tracking-tighter text-[#ff0055]">ADMIN_TERMINAL</h1>
-          <Button onClick={() => { resetForm(); setShowModal(true); }} className="bg-[#00f0ff] text-black font-bold">
+          <Button onClick={() => { resetForm(); setShowModal(true); }} className="bg-[#00f0ff] text-black font-bold hover:bg-white transition-colors">
             <Plus className="mr-2 h-4 w-4" /> NEW_ENTRY
           </Button>
         </div>
@@ -122,12 +136,12 @@ const AdminPage = () => {
                     <span className="font-bold">{p.name}</span>
                   </TableCell>
                   <TableCell className="text-xs text-gray-400 uppercase">{p.category}</TableCell>
-                  <TableCell className="text-[#00f0ff]">{p.stock}</TableCell>
+                  <TableCell className={`${p.stock < 10 ? "text-[#ff0055] animate-pulse" : "text-[#00f0ff]"}`}>{p.stock}</TableCell>
                   <TableCell className="text-right font-bold text-[#00f0ff]">${p.price}</TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => { 
                         setEditingId(p._id); 
-                        setProductForm({...p, tags: Array.isArray(p.tags) ? p.tags.join(', ') : p.tags}); 
+                        setProductForm({...p, tags: Array.isArray(p.tags) ? p.tags.join(', ') : p.tags, sizes: p.sizes || []}); 
                         setShowModal(true); 
                     }} className="hover:text-[#00f0ff]"><Edit className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(p._id)} className="hover:text-[#ff0055]">
@@ -143,7 +157,7 @@ const AdminPage = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <Card className="w-full max-w-2xl bg-[#0a0a0c] border-[#00f0ff] border-t-4 my-auto">
+          <Card className="w-full max-w-2xl bg-[#0a0a0c] border-[#00f0ff] border-t-4 my-auto shadow-[0_0_20px_rgba(0,240,255,0.2)]">
             <CardHeader className="flex flex-row justify-between items-center">
               <CardTitle className="text-white uppercase italic tracking-widest">{editingId ? 'Modify_Artifact' : 'Register_Artifact'}</CardTitle>
               <X className="h-6 w-6 text-gray-500 cursor-pointer hover:text-white" onClick={() => setShowModal(false)} />
@@ -152,10 +166,10 @@ const AdminPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-white text-xs">PRODUCT NAME</Label>
-                  <Input required className="bg-black border-gray-800 text-white" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} />
+                  <Input required className="bg-black border-gray-800 text-white focus:border-[#00f0ff]" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white text-xs">TARGET SECTOR (CATEGORY)</Label>
+                  <Label className="text-white text-xs">TARGET SECTOR</Label>
                   <Select value={productForm.category} onValueChange={v => setProductForm({...productForm, category: v})}>
                     <SelectTrigger className="bg-black border-gray-800 text-white"><SelectValue placeholder="Select Category" /></SelectTrigger>
                     <SelectContent className="bg-[#0a0a0c] border-gray-800 text-white">
@@ -170,12 +184,35 @@ const AdminPage = () => {
               
               <div className="space-y-2">
                 <Label className="text-white text-xs">DESCRIPTION</Label>
-                <Textarea required className="bg-black border-gray-800 text-white" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} />
+                <Textarea required className="bg-black border-gray-800 text-white h-20" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} />
               </div>
+
+              {/* SIZE SELECTION PANEL - ONLY FOR CLOTHING */}
+              {productForm.category === 'clothing' && (
+                <div className="space-y-3 p-4 border border-gray-800 bg-black/50 rounded-md">
+                  <Label className="text-[#00f0ff] text-[10px] tracking-widest uppercase font-bold">Available Dimensions (Sizes)</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+                      <button
+                        type="button"
+                        key={size}
+                        onClick={() => toggleSize(size)}
+                        className={`px-4 py-1 text-xs font-bold border transition-all ${
+                          productForm.sizes.includes(size)
+                            ? "bg-[#00f0ff] border-[#00f0ff] text-black shadow-[0_0_10px_#00f0ff]"
+                            : "border-gray-800 text-gray-500 hover:border-gray-600"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                    <Label className="text-white text-[10px]">PRICE</Label>
+                    <Label className="text-white text-[10px]">PRICE ($)</Label>
                     <Input type="number" step="0.01" className="bg-black border-gray-800 text-white" value={productForm.price} onChange={e => setProductForm({...productForm, price: e.target.value})} />
                 </div>
                 <div className="space-y-1">
@@ -195,10 +232,10 @@ const AdminPage = () => {
 
               <div className="space-y-2">
                 <Label className="text-white text-xs">TAGS (COMMA SEPARATED)</Label>
-                <Input placeholder="neon, oversized, limited" className="bg-black border-gray-800 text-white" value={productForm.tags} onChange={e => setProductForm({...productForm, tags: e.target.value})} />
+                <Input placeholder="onepiece, zoro, neon" className="bg-black border-gray-800 text-white" value={productForm.tags} onChange={e => setProductForm({...productForm, tags: e.target.value})} />
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full bg-[#00f0ff] text-black font-bold hover:bg-[#ff0055] hover:text-white transition-all">
+              <Button type="submit" disabled={loading} className="w-full bg-[#00f0ff] text-black font-bold hover:bg-[#ff0055] hover:text-white transition-all py-6">
                 {loading ? <RefreshCw className="animate-spin" /> : 'EXECUTE UPLINK'}
               </Button>
             </form>

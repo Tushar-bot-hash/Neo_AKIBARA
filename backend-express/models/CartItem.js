@@ -11,6 +11,11 @@ const cartItemSchema = new mongoose.Schema({
     ref: 'Product',
     required: true
   },
+  // NEW: Store the selected dimension for clothing
+  size: {
+    type: String,
+    default: null // Will remain null for non-clothing items
+  },
   quantity: {
     type: Number,
     required: true,
@@ -23,7 +28,14 @@ const cartItemSchema = new mongoose.Schema({
   }
 });
 
-// Compound index to ensure one cart item per user-product combination
-cartItemSchema.index({ user: 1, product: 1 }, { unique: true });
+/**
+ * UPDATED INDEX
+ * Now, uniqueness is defined by User + Product + Size.
+ * This allows:
+ * - User A + Shirt ID + "S" (Quantity 1)
+ * - User A + Shirt ID + "L" (Quantity 1)
+ * ...to exist as separate rows in your database.
+ */
+cartItemSchema.index({ user: 1, product: 1, size: 1 }, { unique: true });
 
 module.exports = mongoose.model('CartItem', cartItemSchema);

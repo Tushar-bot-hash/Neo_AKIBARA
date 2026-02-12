@@ -14,16 +14,12 @@ export const CartProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // NOTE: We no longer need getHeaders()! 
-  // Your axios interceptor in authService.js handles tokens automatically.
-
   const fetchCart = async () => {
     if (!authService.isAuthenticated()) {
       setLoading(false);
       return;
     }
     try {
-      // Uses the dynamic Render URL from your api service
       const response = await api.get('/cart');
       const result = response.data;
       
@@ -50,14 +46,17 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
+  // UPDATED: Now accepts 'size' from the product object
   const addToCart = async (product) => {
     try {
       const response = await api.post('/cart', { 
         productId: product._id || product.id, 
-        quantity: 1 
+        quantity: 1,
+        size: product.size || null // Transmit size to backend for clothing
       });
 
       if (response.status === 200 || response.status === 201) {
+        // Re-sync local state with database to reflect the new item/quantity
         await fetchCart();
       }
     } catch (error) {
@@ -79,6 +78,7 @@ export const CartProvider = ({ children }) => {
     try {
       const response = await api.delete(`/cart/${itemId}`);
       if (response.status === 200) {
+        // Optimistic local update before/after sync
         setCartItems(prev => prev.filter(item => item._id !== itemId));
       }
     } catch (err) {

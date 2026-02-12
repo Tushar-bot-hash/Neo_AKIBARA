@@ -1,4 +1,3 @@
-// models/Order.js
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
@@ -21,7 +20,12 @@ const orderItemSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  image_url: String // Add this for frontend display
+  // NEW: Capture size selection in the order history
+  size: {
+    type: String,
+    default: null // null for non-clothing items
+  },
+  image_url: String 
 });
 
 const orderSchema = new mongoose.Schema({
@@ -30,7 +34,7 @@ const orderSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  user_name: { // Add this for frontend
+  user_name: { 
     type: String,
     required: true
   },
@@ -49,14 +53,14 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'completed', 'cancelled'],
     default: 'pending'
   },
-  shipping_address: { // Add this
+  shipping_address: { 
     street: String,
     city: String,
     state: String,
     zip: String,
     country: String
   },
-  payment_method: String, // Add this
+  payment_method: String, 
   payment_session_id: {
     type: String
   },

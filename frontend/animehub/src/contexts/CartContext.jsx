@@ -47,22 +47,32 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   // UPDATED: Now accepts 'size' from the product object
-  const addToCart = async (product) => {
-    try {
-      const response = await api.post('/cart', { 
-        productId: product._id || product.id, 
-        quantity: 1,
-        size: product.size || null // Transmit size to backend for clothing
-      });
+ const addToCart = async (product) => {
+  // Add this log to see what is actually happening
+  console.log("Attempting to add product:", product);
 
-      if (response.status === 200 || response.status === 201) {
-        // Re-sync local state with database to reflect the new item/quantity
-        await fetchCart();
-      }
-    } catch (error) {
-      console.error("Cart sync error:", error);
+  const idToSend = product._id || product.id || product.productId;
+
+  if (!idToSend) {
+    console.error("ERROR: No ID found for this product!");
+    return;
+  }
+
+  try {
+    const response = await api.post('/cart', { 
+      productId: idToSend, // Ensure this matches your controller's req.body.productId
+      quantity: 1,
+      size: product.size || null 
+    });
+
+    if (response.status === 200 || response.status === 201) {
+      await fetchCart();
     }
-  };
+  } catch (error) {
+    // This will tell you if the error is 404 (Path) or 404 (Controller)
+    console.error("Cart sync error details:", error.response?.data);
+  }
+};
 
   const updateQuantity = async (itemId, quantity) => {
     if (quantity < 1) return removeFromCart(itemId);

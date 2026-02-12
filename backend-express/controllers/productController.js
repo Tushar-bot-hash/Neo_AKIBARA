@@ -1,4 +1,3 @@
-// controllers/productController.js - COMPLETE VERSION
 const Product = require('../models/Product');
 
 // @desc    Get all products
@@ -52,9 +51,14 @@ exports.getProduct = async (req, res, next) => {
 // @access  Private/Admin
 exports.createProduct = async (req, res, next) => {
   try {
-    // Parse tags if they're sent as comma-separated string
+    // 1. Process Tags: Convert comma-separated string to array if necessary
     if (req.body.tags && typeof req.body.tags === 'string') {
-      req.body.tags = req.body.tags.split(',').map(tag => tag.trim());
+      req.body.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(t => t !== "");
+    }
+    
+    // 2. Size Logic: Ensure sizes only exist for clothing
+    if (req.body.category !== 'clothing') {
+      req.body.sizes = [];
     }
     
     const product = await Product.create(req.body);
@@ -73,9 +77,14 @@ exports.createProduct = async (req, res, next) => {
 // @access  Private/Admin
 exports.updateProduct = async (req, res, next) => {
   try {
-    // Parse tags if they're sent as comma-separated string
+    // 1. Process Tags: Handle string-to-array conversion
     if (req.body.tags && typeof req.body.tags === 'string') {
-      req.body.tags = req.body.tags.split(',').map(tag => tag.trim());
+      req.body.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(t => t !== "");
+    }
+
+    // 2. Category Guard: If changing away from clothing, wipe the sizes array
+    if (req.body.category && req.body.category !== 'clothing') {
+      req.body.sizes = [];
     }
     
     const product = await Product.findByIdAndUpdate(
@@ -119,7 +128,7 @@ exports.deleteProduct = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product deleted'
+      message: 'Product deleted successfully'
     });
   } catch (err) {
     next(err);

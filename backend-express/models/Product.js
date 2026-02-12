@@ -18,13 +18,15 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Please add a category'],
+    // Ensure this matches your AdminPage Select values exactly
     enum: ['figures', 'clothing', 'posters', 'accessories', 'manga', 'collectibles', 'media']
   },
-  // NEW: Sizes array specifically for clothing
+  // UPDATED: Sizes array with flexible enum
   sizes: {
     type: [String],
     default: [],
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'OS'] 
+    // Includes standard sizes plus 'OS' (One Size)
+    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'OS', null] 
   },
   image_url: {
     type: String,
@@ -54,6 +56,18 @@ const productSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+/**
+ * DATABASE GUARDRAIL
+ * If the category is NOT clothing, we force the sizes array to be empty.
+ * This prevents a "Poster" from accidentally having an "XL" size in the DB.
+ */
+productSchema.pre('save', function(next) {
+  if (this.category !== 'clothing') {
+    this.sizes = [];
+  }
+  next();
 });
 
 module.exports = mongoose.model('Product', productSchema);

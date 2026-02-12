@@ -25,37 +25,26 @@ exports.getCart = async (req, res, next) => {
 // @access  Private
 exports.addToCart = async (req, res, next) => {
   try {
-    // UPDATED: Now extracting 'size' from req.body
     const { productId, quantity, size } = req.body;
 
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return res.status(404).json({ success: false, error: 'Product not found' });
     }
 
-    // UPDATED: Check for existing item with SAME product AND SAME size
+    // Match exact product AND exact size
     let cartItem = await CartItem.findOne({
       user: req.user.id,
       product: productId,
-      size: size || null // Match the exact variation
+      size: size || null 
     });
 
     if (cartItem) {
-      // Update quantity of this specific variation
       cartItem.quantity += (Number(quantity) || 1);
       await cartItem.save();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Cart variation updated',
-        data: cartItem
-      });
+      return res.status(200).json({ success: true, data: cartItem });
     }
 
-    // Create new cart item with size data
     cartItem = await CartItem.create({
       user: req.user.id,
       product: productId,
@@ -63,11 +52,7 @@ exports.addToCart = async (req, res, next) => {
       quantity: Number(quantity) || 1
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Variation added to cart',
-      data: cartItem
-    });
+    res.status(201).json({ success: true, data: cartItem });
   } catch (err) {
     next(err);
   }
@@ -79,9 +64,6 @@ exports.addToCart = async (req, res, next) => {
 exports.updateCartItem = async (req, res, next) => {
   try {
     const { quantity } = req.body;
-
-    // We use the unique MongoDB ID (_id) for the cart record, 
-    // so it doesn't matter if there are multiple sizes of the same product.
     const cartItem = await CartItem.findOneAndUpdate(
       { _id: req.params.id, user: req.user.id },
       { quantity: Number(quantity) },
@@ -89,19 +71,43 @@ exports.updateCartItem = async (req, res, next) => {
     ).populate('product');
 
     if (!cartItem) {
-      return res.status(404).json({
-        success: false,
-        error: 'Cart record not found'
-      });
+      return res.status(404).json({ success: false, error: 'Cart record not found' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: cartItem
-    });
+    res.status(200).json({ success: true, data: cartItem });
   } catch (err) {
     next(err);
   }
 };
 
-// ... (removeFromCart and clearCart remain the same as they use record IDs)
+// @desc    Remove item from cart
+// @route   DELETE /api/cart/:id
+// @access  Private
+exports.removeFromCart = async (req, res, next) => {
+  try {
+    const cartItem = await CartItem.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id
+    });
+
+    if (!cartItem) {
+      return res.status(404).json({ success: false, error: 'Item not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Item removed' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Clear entire cart
+// @route   DELETE /api/cart
+// @access  Private
+exports.clearCart = async (req, res, next) => {
+  try {
+    await CartItem.deleteMany({ user: req.user.id });
+    res.status(200).json({ success: true, message: 'Cart purged' });
+  } catch (err) {
+    next(err);
+  }
+};

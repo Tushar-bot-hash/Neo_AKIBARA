@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from "react";
-// Import the authService you created
 import { authService } from '@/services/api';
 
 const AuthContext = createContext();
@@ -8,62 +7,70 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 1. INITIAL SESSION CHECK
   useEffect(() => {
-    // Use your service's helper to get the initial user state
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
-    setLoading(false);
+    const initializeAuth = () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+      setLoading(false);
+    };
+    initializeAuth();
   }, []);
 
-  // --- SIGNUP LOGIC ---
+  // 2. SIGNUP LOGIC
   const signup = async (name, email, password) => {
     try {
       const trimmedEmail = email.trim();
-      console.log("📝 Attempting signup for:", trimmedEmail);
-
-      // Call your centralized service instead of manual fetch
       const result = await authService.register({ name, email: trimmedEmail, password });
 
       if (result.success) {
         setUser(result.user);
-        return { success: true, user: result.user };
+        return { success: true };
       } else {
-        return { success: false, error: result.error.message || "Signup failed" };
+        // Robust error parsing to handle strings or objects
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.error || "Signup failed";
+          
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error("❌ Signup error:", error);
+      console.error("❌ Signup System Error:", error);
       return { success: false, error: "Neural link failure: verify backend status" };
     }
   };
 
-  // --- LOGIN LOGIC ---
+  // 3. LOGIN LOGIC
   const login = async (email, password) => {
     try {
       const trimmedEmail = email.trim();
-      console.log("🔐 Attempting login for:", trimmedEmail);
-      
-      // Call your centralized service instead of manual fetch
       const result = await authService.login(trimmedEmail, password);
 
       if (result.success) {
         setUser(result.user);
-        return { success: true, user: result.user };
+        return { success: true };
       } else {
-        return { success: false, error: result.error.message || "Invalid credentials" };
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.error || "Invalid credentials";
+
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error("❌ Login error:", error);
+      console.error("❌ Login System Error:", error);
       return { success: false, error: "Connection refused: check backend logs" };
     }
   };
 
+  // 4. LOGOUT
   const logout = () => {
-    authService.logout(); // Clean up localStorage via service
+    authService.logout(); 
     setUser(null);
   };
 
+  // 5. DEV TOOLS (Optional)
   const testAdminLogin = () => {
     const adminUser = {
       id: "admin-force-bypass",
@@ -73,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     };
     setUser(adminUser);
     localStorage.setItem("user", JSON.stringify(adminUser));
-    localStorage.setItem("token", "bypass-token");
+    localStorage.setItem("token", "bypass-token"); // Note: real backend routes will still reject this
     return { success: true, user: adminUser };
   };
 
@@ -84,7 +91,8 @@ export const AuthProvider = ({ children }) => {
       login, 
       signup, 
       logout, 
-      testAdminLogin 
+      testAdminLogin,
+      isAdmin: user?.role === 'admin' // Helper for UI logic
     }}>
       {!loading && children}
     </AuthContext.Provider>
@@ -93,6 +101,8 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 };

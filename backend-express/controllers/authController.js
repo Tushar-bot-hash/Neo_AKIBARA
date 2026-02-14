@@ -4,7 +4,7 @@ const { validationResult } = require('express-validator');
 
 // Helper to generate tokens
 const generateTokens = (id) => {
-  // Use REFRESH_SECRET for refresh and JWT_SECRET for access
+  // Uses REFRESH_SECRET to match your updated Render dashboard
   const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ id }, process.env.REFRESH_SECRET, { expiresIn: '7d' });
   return { accessToken, refreshToken };
@@ -20,8 +20,9 @@ const sendTokenResponse = async (user, statusCode, res) => {
 
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    // CRITICAL: Must be true and 'none' for Vercel -> Render communication
+    secure: true, 
+    sameSite: 'none', 
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   };
 
@@ -63,20 +64,13 @@ exports.login = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// @desc    Get current logged in user
-// @route   GET /api/auth/me
 exports.getMe = async (req, res, next) => {
   try {
-    // req.user is set by the protect middleware
     const user = await User.findById(req.user.id);
-    res.status(200).json({
-      success: true,
-      data: user
-    });
+    res.status(200).json({ success: true, data: user });
   } catch (err) { next(err); }
 };
 
-// @desc    Refresh Token Logic
 exports.refresh = async (req, res) => {
   const cookies = req.cookies;
   if (!cookies?.refreshToken) return res.status(401).json({ message: "No refresh token" });
@@ -99,16 +93,12 @@ exports.refresh = async (req, res) => {
   foundUser.refreshTokens.push(newTokens.refreshToken);
   await foundUser.save();
 
-  const cookieOptions = {
+  res.cookie('refreshToken', newTokens.refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: true,
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000
-  };
-
-  res.cookie('refreshToken', newTokens.refreshToken, cookieOptions).json({ 
-    accessToken: newTokens.accessToken 
-  });
+  }).json({ accessToken: newTokens.accessToken });
 };
 
 exports.logout = async (req, res) => {
@@ -121,8 +111,8 @@ exports.logout = async (req, res) => {
   }
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: true,
+    sameSite: 'none',
   });
   res.status(200).json({ success: true, message: 'Logged out' });
 };

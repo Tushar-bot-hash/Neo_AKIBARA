@@ -4,6 +4,7 @@ const { validationResult } = require('express-validator');
 
 // Helper to generate tokens
 const generateTokens = (id) => {
+  // Use REFRESH_SECRET for refresh and JWT_SECRET for access
   const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ id }, process.env.REFRESH_SECRET, { expiresIn: '7d' });
   return { accessToken, refreshToken };
@@ -26,10 +27,17 @@ const sendTokenResponse = async (user, statusCode, res) => {
 
   res.status(statusCode).cookie('refreshToken', refreshToken, cookieOptions).json({
     success: true,
-    accessToken, // Sent in body so frontend can store in memory
-    user: { id: user._id, name: user.name, role: user.role }
+    accessToken,
+    user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+    }
   });
 };
+
+// --- EXPORTS ---
 
 exports.signup = async (req, res, next) => {
   const errors = validationResult(req);
@@ -55,32 +63,52 @@ exports.login = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// @desc    Refresh Token Logic (The Security Core)
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+exports.getMe = async (req, res, next) => {
+  try {
+    // req.user is set by the protect middleware
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (err) { next(err); }
+};
+
+// @desc    Refresh Token Logic
 exports.refresh = async (req, res) => {
   const cookies = req.cookies;
-  if (!cookies?.refreshToken) return res.sendStatus(401);
+  if (!cookies?.refreshToken) return res.status(401).json({ message: "No refresh token" });
+  
   const oldRefreshToken = cookies.refreshToken;
-
   const foundUser = await User.findOne({ refreshTokens: oldRefreshToken });
 
-  // REUSE DETECTION: Token is valid but NOT in our DB list?
+  // REUSE DETECTION
   if (!foundUser) {
     jwt.verify(oldRefreshToken, process.env.REFRESH_SECRET, async (err, decoded) => {
       if (err) return; 
-      // Compromised! Clear ALL tokens for this user
       await User.findByIdAndUpdate(decoded.id, { refreshTokens: [] });
     });
     return res.status(403).json({ message: "Security risk: session hijacked." });
   }
 
-  // VALID REFRESH: Rotate tokens
+  // VALID REFRESH
   const newTokens = generateTokens(foundUser._id);
   foundUser.refreshTokens = foundUser.refreshTokens.filter(rt => rt !== oldRefreshToken);
   foundUser.refreshTokens.push(newTokens.refreshToken);
   await foundUser.save();
 
-  res.cookie('refreshToken', newTokens.refreshToken, { /* same options as login */ });
-  res.json({ accessToken: newTokens.accessToken });
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  };
+
+  res.cookie('refreshToken', newTokens.refreshToken, cookieOptions).json({ 
+    accessToken: newTokens.accessToken 
+  });
 };
 
 exports.logout = async (req, res) => {
@@ -91,6 +119,10 @@ exports.logout = async (req, res) => {
       { $pull: { refreshTokens: refreshToken } }
     );
   }
-  res.clearCookie('refreshToken');
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  });
   res.status(200).json({ success: true, message: 'Logged out' });
 };

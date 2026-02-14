@@ -5,7 +5,8 @@ const {
   signup,
   login,
   logout,
-  getMe
+  getMe,
+  refresh // <--- Add this controller function
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -27,6 +28,10 @@ router.post(
   ],
   login
 );
+
+// NEW: The Refresh route. 
+// It doesn't need 'protect' because it uses the refreshToken cookie, not the Bearer token.
+router.get('/refresh', refresh);
 
 router.post('/logout', logout);
 router.get('/me', protect, getMe);

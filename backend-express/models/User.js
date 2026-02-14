@@ -29,6 +29,8 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  // NEW: Store multiple active refresh tokens for rotation & reuse detection
+  refreshTokens: [String],
   createdAt: {
     type: Date,
     default: Date.now

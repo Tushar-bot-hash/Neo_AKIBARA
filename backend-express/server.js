@@ -44,14 +44,16 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps)
+    // Allow requests with no origin (like mobile apps or server-to-server)
     if (!origin) return callback(null, true);
     
-    const isAllowed = allowedOrigins.includes(origin) || 
-                      origin.endsWith('netlify.app') ||
-                      origin.includes('onrender.com');
+    const isVercel = origin.endsWith('.vercel.app') || origin.includes('vercel.app');
+    const isNetlify = origin.endsWith('netlify.app');
+    const isRender = origin.includes('onrender.com');
+    const isLocal = origin.includes('localhost');
+    const isAllowedList = allowedOrigins.includes(origin);
 
-    if (isAllowed) {
+    if (isAllowedList || isVercel || isNetlify || isRender || isLocal) {
       callback(null, true);
     } else {
       console.log("❌ Blocked by CORS:", origin);
@@ -60,7 +62,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Forwarded-For']
 };
 
 app.use(cors(corsOptions));

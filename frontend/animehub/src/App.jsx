@@ -1,4 +1,4 @@
-﻿import { Routes, Route, Link } from "react-router-dom";
+﻿import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { Home, Package, Info, ShoppingCart, User, LogOut, Shirt, Images, Sparkles, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,35 +26,15 @@ import {
 import "./index.css";
 
 function Navigation() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth(); // Use isAdmin helper
   const { totalItems } = useCart();
+  const location = useLocation();
 
-  // UPDATED: These match your backend Product model categories exactly
   const animeCategories = [
-    {
-      title: "Clothing",
-      icon: <Shirt className="h-4 w-4" />,
-      href: "/products/clothing",
-      desc: "Cyber-Goth hoodies and limited tees."
-    },
-    {
-      title: "Manga & Books",
-      icon: <Package className="h-4 w-4" />,
-      href: "/products/manga",
-      desc: "Original tankobon and art books."
-    },
-    {
-      title: "Accessories",
-      icon: <Sparkles className="h-4 w-4" />,
-      href: "/products/accessories",
-      desc: "Techwear jewelry and tactical bags."
-    },
-    {
-      title: "Posters",
-      icon: <Images className="h-4 w-4" />,
-      href: "/products/posters",
-      desc: "Neon-lit prints and wall scrolls."
-    }
+    { title: "Clothing", icon: <Shirt className="h-4 w-4" />, href: "/products/clothing", desc: "Cyber-Goth hoodies and limited tees." },
+    { title: "Manga & Books", icon: <Package className="h-4 w-4" />, href: "/products/manga", desc: "Original tankobon and art books." },
+    { title: "Accessories", icon: <Sparkles className="h-4 w-4" />, href: "/products/accessories", desc: "Techwear jewelry and tactical bags." },
+    { title: "Posters", icon: <Images className="h-4 w-4" />, href: "/products/posters", desc: "Neon-lit prints and wall scrolls." }
   ];
 
   return (
@@ -69,7 +49,7 @@ function Navigation() {
             <NavigationMenuList>
               <NavigationMenuItem>
                 <NavigationMenuLink asChild>
-                  <Link to="/" className="group inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors text-gray-300 hover:text-[#00f0ff] focus:outline-none">
+                  <Link to="/" className={`group inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:text-[#00f0ff] ${location.pathname === '/' ? 'text-[#00f0ff]' : 'text-gray-300'}`}>
                     <Home className="mr-2 h-4 w-4" />
                     Home
                   </Link>
@@ -77,23 +57,18 @@ function Navigation() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="bg-transparent text-gray-300 hover:bg-transparent hover:text-[#00f0ff] data-[state=open]:text-[#00f0ff] data-[state=open]:bg-transparent">
+                <NavigationMenuTrigger className="bg-transparent text-gray-300 hover:bg-transparent hover:text-[#00f0ff] data-[state=open]:text-[#00f0ff]">
                   <Package className="mr-2 h-4 w-4" />
                   Shop
                 </NavigationMenuTrigger>
                 <NavigationMenuContent className="border border-gray-800 bg-black p-4 shadow-2xl">
                   <div className="w-[280px] p-2">
-                    <div className="text-[#00f0ff] text-[10px] uppercase tracking-widest border-b border-gray-800 pb-2 mb-3 font-bold opacity-70">
-                      Sector_Categories
-                    </div>
+                    <div className="text-[#00f0ff] text-[10px] uppercase tracking-widest border-b border-gray-800 pb-2 mb-3 font-bold opacity-70">Sector_Categories</div>
                     <ul className="space-y-1">
                       {animeCategories.map((item) => (
                         <li key={item.title}>
                           <NavigationMenuLink asChild>
-                            <Link
-                              to={item.href}
-                              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-gray-800"
-                            >
+                            <Link to={item.href} className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-gray-800">
                               <span className="text-[#ff0055]">{item.icon}</span>
                               <div className="flex flex-col">
                                 <span className="font-bold tracking-tight leading-none mb-1">{item.title}</span>
@@ -110,7 +85,7 @@ function Navigation() {
               
               <NavigationMenuItem>
                 <NavigationMenuLink asChild>
-                  <Link to="/about" className="group inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors text-gray-300 hover:text-[#00f0ff] focus:outline-none">
+                  <Link to="/about" className={`group inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:text-[#00f0ff] ${location.pathname === '/about' ? 'text-[#00f0ff]' : 'text-gray-300'}`}>
                     <Info className="mr-2 h-4 w-4" />
                     About
                   </Link>
@@ -137,13 +112,13 @@ function Navigation() {
           {user ? (
             <div className="flex items-center gap-2">
               <Link to="/orders">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-[#00f0ff] font-mono text-[10px] tracking-widest uppercase hidden lg:flex">
+                <Button variant="ghost" size="sm" className={`text-gray-400 hover:text-[#00f0ff] font-mono text-[10px] tracking-widest uppercase hidden lg:flex ${location.pathname === '/orders' ? 'text-[#00f0ff]' : ''}`}>
                   <History className="h-4 w-4 mr-2" />
                   Archives
                 </Button>
               </Link>
 
-              {user.role === 'admin' && (
+              {isAdmin && (
                 <Link to="/admin">
                   <Button variant="outline" size="sm" className="border-[#ff0055] text-[#ff0055] hover:bg-[#ff0055] hover:text-white transition-all">
                     Dashboard
@@ -156,23 +131,16 @@ function Navigation() {
                   {user.name?.split(' ')[0] || 'Profile'}
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="border-[#ff0055] text-[#ff0055] hover:bg-[#ff0055] hover:text-white h-9 w-9" 
-                onClick={logout}
-              >
+              <Button variant="outline" size="icon" className="border-[#ff0055] text-[#ff0055] hover:bg-[#ff0055] hover:text-white h-9 w-9" onClick={logout}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Link to="/login">
-                <Button variant="outline" size="sm" className="border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black transition-all">
-                  Login
-                </Button>
-              </Link>
-            </div>
+            <Link to="/login">
+              <Button variant="outline" size="sm" className="border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black transition-all">
+                Login
+              </Button>
+            </Link>
           )}
         </div>
       </div>
@@ -184,6 +152,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-white selection:bg-[#00f0ff] selection:text-black">
       <Toaster />
+      {/* Noise Overlay Filter */}
       <div className="fixed inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22256%22 height=%22256%22 filter=%22url(%23noise)%22 opacity=%220.03%22/%3E%3C/svg%3E')] pointer-events-none z-50" />
       
       <Navigation />
@@ -200,8 +169,9 @@ function App() {
           <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminPage /></ProtectedRoute>} />
-          <Route path="/products/:category?" element={<HomePage />} />
-          <Route path="/collections/:type?" element={<HomePage />} />
+          {/* Categorized Product Views */}
+          <Route path="/products/:category" element={<HomePage />} />
+          <Route path="/collections/:type" element={<HomePage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
       </main>

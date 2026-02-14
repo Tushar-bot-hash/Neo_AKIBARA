@@ -1,12 +1,25 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
-// Import your new helper functions
-const { generateAccessToken, generateRefreshToken } = require('../utils/tokenGenerator');
+
+/**
+ * 🔐 INLINED TOKEN HELPERS
+ * Bypassing external file requirement to fix Render 'MODULE_NOT_FOUND'
+ */
+const generateAccessToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '15m'
+  });
+};
+
+const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d'
+  });
+};
 
 // @desc    Signup/Login Helper
 const sendTokenResponse = async (user, statusCode, res) => {
-  // Use your new specific generator functions
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
 
@@ -18,14 +31,14 @@ const sendTokenResponse = async (user, statusCode, res) => {
     httpOnly: true,
     secure: true,      // Required for sameSite: 'none'
     sameSite: 'none',  // Required for cross-domain (Vercel to Render)
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (matching your 7d secret expiry)
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   };
 
   res.status(statusCode)
-    .cookie('refreshToken', refreshToken, cookieOptions) // Set the cookie
+    .cookie('refreshToken', refreshToken, cookieOptions)
     .json({
       success: true,
-      accessToken, // Sent to frontend Local Storage
+      accessToken,
       user: { 
           id: user._id, 
           name: user.name, 
@@ -61,7 +74,6 @@ exports.login = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// @desc    Refresh Token Logic with Rotation
 exports.refresh = async (req, res) => {
   const cookies = req.cookies;
   if (!cookies?.refreshToken) return res.status(401).json({ message: "No refresh token provided" });
@@ -69,7 +81,7 @@ exports.refresh = async (req, res) => {
   const oldRefreshToken = cookies.refreshToken;
   const foundUser = await User.findOne({ refreshTokens: oldRefreshToken });
 
-  // REUSE DETECTION: If token is valid but user not found, clear all sessions (security risk)
+  // REUSE DETECTION
   if (!foundUser) {
     jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
       if (err) return; 
@@ -78,11 +90,9 @@ exports.refresh = async (req, res) => {
     return res.status(403).json({ message: "Security alert: Refresh token reused or hijacked." });
   }
 
-  // VALID REFRESH: Generate new pair
   const newAccessToken = generateAccessToken(foundUser._id);
   const newRefreshToken = generateRefreshToken(foundUser._id);
 
-  // ROTATE: Remove old token, add new one
   foundUser.refreshTokens = foundUser.refreshTokens.filter(rt => rt !== oldRefreshToken);
   foundUser.refreshTokens.push(newRefreshToken);
   await foundUser.save();

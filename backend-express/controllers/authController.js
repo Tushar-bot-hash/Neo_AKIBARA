@@ -1,41 +1,38 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
-
-// Helper to generate tokens
-const generateTokens = (id) => {
-  // Uses REFRESH_SECRET to match your updated Render dashboard
-  const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ id }, process.env.REFRESH_SECRET, { expiresIn: '7d' });
-  return { accessToken, refreshToken };
-};
+// Import your new helper functions
+const { generateAccessToken, generateRefreshToken } = require('../utils/tokenGenerator');
 
 // @desc    Signup/Login Helper
 const sendTokenResponse = async (user, statusCode, res) => {
-  const { accessToken, refreshToken } = generateTokens(user._id);
+  // Use your new specific generator functions
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
 
-  // Save refresh token to user's active sessions in DB
+  // Save refresh token to user's active sessions in DB for reuse detection
   user.refreshTokens.push(refreshToken);
   await user.save();
 
   const cookieOptions = {
     httpOnly: true,
-    // CRITICAL: Must be true and 'none' for Vercel -> Render communication
-    secure: true, 
-    sameSite: 'none', 
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    secure: true,      // Required for sameSite: 'none'
+    sameSite: 'none',  // Required for cross-domain (Vercel to Render)
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (matching your 7d secret expiry)
   };
 
-  res.status(statusCode).cookie('refreshToken', refreshToken, cookieOptions).json({
-    success: true,
-    accessToken,
-    user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        role: user.role 
-    }
-  });
+  res.status(statusCode)
+    .cookie('refreshToken', refreshToken, cookieOptions) // Set the cookie
+    .json({
+      success: true,
+      accessToken, // Sent to frontend Local Storage
+      user: { 
+          id: user._id, 
+          name: user.name, 
+          email: user.email, 
+          role: user.role 
+      }
+    });
 };
 
 // --- EXPORTS ---
@@ -64,41 +61,38 @@ exports.login = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports.getMe = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.status(200).json({ success: true, data: user });
-  } catch (err) { next(err); }
-};
-
+// @desc    Refresh Token Logic with Rotation
 exports.refresh = async (req, res) => {
   const cookies = req.cookies;
-  if (!cookies?.refreshToken) return res.status(401).json({ message: "No refresh token" });
+  if (!cookies?.refreshToken) return res.status(401).json({ message: "No refresh token provided" });
   
   const oldRefreshToken = cookies.refreshToken;
   const foundUser = await User.findOne({ refreshTokens: oldRefreshToken });
 
-  // REUSE DETECTION
+  // REUSE DETECTION: If token is valid but user not found, clear all sessions (security risk)
   if (!foundUser) {
-    jwt.verify(oldRefreshToken, process.env.REFRESH_SECRET, async (err, decoded) => {
+    jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
       if (err) return; 
       await User.findByIdAndUpdate(decoded.id, { refreshTokens: [] });
     });
-    return res.status(403).json({ message: "Security risk: session hijacked." });
+    return res.status(403).json({ message: "Security alert: Refresh token reused or hijacked." });
   }
 
-  // VALID REFRESH
-  const newTokens = generateTokens(foundUser._id);
+  // VALID REFRESH: Generate new pair
+  const newAccessToken = generateAccessToken(foundUser._id);
+  const newRefreshToken = generateRefreshToken(foundUser._id);
+
+  // ROTATE: Remove old token, add new one
   foundUser.refreshTokens = foundUser.refreshTokens.filter(rt => rt !== oldRefreshToken);
-  foundUser.refreshTokens.push(newTokens.refreshToken);
+  foundUser.refreshTokens.push(newRefreshToken);
   await foundUser.save();
 
-  res.cookie('refreshToken', newTokens.refreshToken, {
+  res.cookie('refreshToken', newRefreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000
-  }).json({ accessToken: newTokens.accessToken });
+  }).json({ accessToken: newAccessToken });
 };
 
 exports.logout = async (req, res) => {
@@ -114,5 +108,5 @@ exports.logout = async (req, res) => {
     secure: true,
     sameSite: 'none',
   });
-  res.status(200).json({ success: true, message: 'Logged out' });
+  res.status(200).json({ success: true, message: 'Successfully logged out' });
 };

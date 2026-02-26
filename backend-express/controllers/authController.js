@@ -22,7 +22,7 @@ const cookieOptions = {
   httpOnly: true,
   secure: true,      // Must be true for sameSite: 'none'
   sameSite: 'none',  // Required for Vercel -> Render
-  partitioned: true, // 👈 Fixes the "Partitioned" console warnings
+  partitioned: true, // Fixes the "Partitioned" console warnings
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
 
@@ -50,6 +50,25 @@ const sendTokenResponse = async (user, statusCode, res) => {
 };
 
 // --- AUTH EXPORTS ---
+
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+exports.getMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 exports.signup = async (req, res, next) => {
   const errors = validationResult(req);
@@ -82,15 +101,12 @@ exports.refresh = async (req, res) => {
   const oldRefreshToken = cookies.refreshToken;
   const foundUser = await User.findOne({ refreshTokens: oldRefreshToken });
 
-  // 🛡️ REUSE DETECTION (The "Nuclear" Option)
+  // 🛡️ REUSE DETECTION
   if (!foundUser) {
     try {
-      // If token is reused, decode it to find the user and clear all their sessions
       const decoded = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
       await User.findByIdAndUpdate(decoded.id, { refreshTokens: [] });
-    } catch (err) {
-      // Token invalid or expired; no further action needed
-    }
+    } catch (err) {}
     return res.status(403).json({ message: "Security alert: Refresh token reused or hijacked." });
   }
 
@@ -98,12 +114,10 @@ exports.refresh = async (req, res) => {
   const newAccessToken = generateAccessToken(foundUser._id);
   const newRefreshToken = generateRefreshToken(foundUser._id);
 
-  // Replace old token with new token in the database
   foundUser.refreshTokens = foundUser.refreshTokens.filter(rt => rt !== oldRefreshToken);
   foundUser.refreshTokens.push(newRefreshToken);
   await foundUser.save();
 
-  // Send the new rotated token back with Partitioned attribute
   res.cookie('refreshToken', newRefreshToken, cookieOptions)
      .json({ accessToken: newAccessToken });
 };
@@ -117,12 +131,11 @@ exports.logout = async (req, res) => {
     );
   }
 
-  // Ensure clearCookie options match the setCookie options exactly
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: true,
     sameSite: 'none',
-    partitioned: true, // 👈 Required to successfully clear partitioned cookies
+    partitioned: true,
   });
   
   res.status(200).json({ success: true, message: 'Successfully logged out' });
